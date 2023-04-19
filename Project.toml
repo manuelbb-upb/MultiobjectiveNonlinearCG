@@ -3,6 +3,9 @@ uuid = "f1b1ba56-2df8-484c-8748-ecdea8f0f22b"
 authors = ["Manuel Berkemeier <manuelbb@mail.uni-paderborn.de> and contributors"]
 version = "0.0.1-DEV"
 
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+
 [compat]
 julia = "1.8"
 
