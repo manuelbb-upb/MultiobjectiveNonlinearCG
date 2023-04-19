@@ -158,11 +158,12 @@ function frank_wolfe_multidir_dual(grads; max_iter=10_000, eps_abs=1e-5)
 	M = LA.Symmetric(_M, :U)
 
 	## 3) Solver iteration
-	_α = copy(α)    # to keep track of change
+	_α = copy(α)    		# to keep track of change
+	u = zeros(T, num_objfs) # seed vector
 	for _=1:max_iter
 		t = argmin( M*α )
 		v = α
-		u = zeros(T, num_objfs)
+		fill!(u, 0)
 		u[t] = one(T)
 		
 		γ, _ = min_chull2(M, v, u)
