@@ -1,0 +1,13 @@
+name = "MultiobjectiveNonlinearCG"
+uuid = "f1b1ba56-2df8-484c-8748-ecdea8f0f22b"
+authors = ["Manuel Berkemeier <manuelbb@mail.uni-paderborn.de> and contributors"]
+version = "0.0.1-DEV"
+
+[compat]
+julia = "1.8"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
