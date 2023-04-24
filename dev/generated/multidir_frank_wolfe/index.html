@@ -4,19 +4,21 @@
 = \frac{1}{2} ‖ \nabla \symbf{f}^T \symbf{α} ‖_2^2
 = \frac{1}{2} \symbf a^T \nabla \symbf{f} \nabla \symbf{f}^T \symbf {α}\]</p><p>Hence,</p><p class="math-container">\[\nabla F(\symbf{α})
 = \nabla \symbf{f} \nabla \symbf{f}^T \symbf α
-=: \symbf M \symbf α\]</p><p>The algorithm starts with some initial <span>$\symbf{α} = [α_1, …, α_K]^T$</span> and optimizes <span>$F$</span> within the standard simplex <span>$S = \{\symbf α = [α_1, …, α_k]: α_i \ge 0, \sum_i α_i = 1\}.$</span> This leads to the following procedure:</p><ol><li>Compute seed <span>$s$</span> as the minimizer of <span>$\langle \symbf s, \nabla F(\symbf α_k) \rangle = \langle \symbf s, \symbf M \symbf α_k\rangle$</span> in <span>$S$</span>. The minimum is attained in one of the corners, i.e., <span>$\symbf s = \symbf e_t$</span>, where <span>$t$</span> is the minimizing index for the entries of <span>$\symbf M \symbf α_k$</span>.</li><li>Compute the exact stepsize <span>$γ\in[0,1]$</span> that minimizes<p class="math-container">\[F((1-γ)\symbf α_k + γ \symbf s).\]</p></li><li>Set <span>$\symbf α_{k+1} = (1-γ_k) α_k + γ_k \symbf s$</span>.</li></ol><h2 id="Finding-the-Stepsize"><a class="docs-heading-anchor" href="#Finding-the-Stepsize">Finding the Stepsize</a><a id="Finding-the-Stepsize-1"></a><a class="docs-heading-anchor-permalink" href="#Finding-the-Stepsize" title="Permalink"></a></h2><p>Let&#39;s discuss step 2. Luckily, we can indeed (easily) compute the minimizing stepsize. Suppose <span>$v ∈ ℝⁿ$</span> and <span>$u ∈ ℝⁿ$</span> are vectors and <span>$M ∈ ℝ^{n×n}$</span> is a <strong>symmetric</strong> square matrix. What is the minimum of</p><p class="math-container">\[σ(γ) = ( (1-γ) v + γ u )ᵀ M ( (1-γ) v + γ u) ?   (γ ∈ [0,1])\]</p><p>We have</p><p class="math-container">\[σ(γ) \begin{aligned}[t]
+=: \symbf M \symbf α\]</p><p>The algorithm starts with some initial <span>$\symbf{α} = [α_1, …, α_K]^T$</span> and optimizes <span>$F$</span> within the standard simplex <span>$S = \{\symbf α = [α_1, …, α_k]: α_i \ge 0, \sum_i α_i = 1\}.$</span> This leads to the following procedure:</p><ol><li>Compute seed <span>$s$</span> as the minimizer of <span>$\langle \symbf s, \nabla F(\symbf α_k) \rangle = \langle \symbf s, \symbf M \symbf α_k\rangle$</span> in <span>$S$</span>. The minimum is attained in one of the corners, i.e., <span>$\symbf s = \symbf e_t$</span>, where <span>$t$</span> is the minimizing index for the entries of <span>$\symbf M \symbf α_k$</span>.</li><li>Compute the exact stepsize <span>$γ\in[0,1]$</span> that minimizes<p class="math-container">\[F((1-γ)\symbf α_k + γ \symbf s).\]</p></li><li>Set <span>$\symbf α_{k+1} = (1-γ_k) α_k + γ_k \symbf s$</span>.</li></ol><h2 id="Finding-the-Stepsize"><a class="docs-heading-anchor" href="#Finding-the-Stepsize">Finding the Stepsize</a><a id="Finding-the-Stepsize-1"></a><a class="docs-heading-anchor-permalink" href="#Finding-the-Stepsize" title="Permalink"></a></h2><p>Let&#39;s discuss step 2. Luckily, we can indeed (easily) compute the minimizing stepsize. Suppose <span>$\symbf v ∈ ℝⁿ$</span> and <span>$\symbf u ∈ ℝⁿ$</span> are vectors and <span>$\symbf M ∈ ℝ^{n×n}$</span> is a <strong>symmetric</strong> square matrix. What is the minimum of the following function?</p><p class="math-container">\[σ(γ) = ( (1-γ) \symbf v + γ \symbf u )ᵀ \symbf M ( (1-γ) \symbf v + γ \symbf u) \qquad  (γ ∈ [0,1])\]</p><p>We have</p><p class="math-container">\[σ(γ) \begin{aligned}[t]
 	&amp;=
-	( (1-γ) v + γ u )ᵀ M ( (1-γ) v + γ u )
+	( (1-γ) \symbf v + γ \symbf u )ᵀ\symbf{M} ( (1-γ) \symbf v + γ \symbf{u})
 		\\
 	&amp;=
-	(1-γ)² \underbrace{vᵀ M v}_{a} + 2γ(1-γ) \underbrace{uᵀ M v}_{b} + γ² \underbrace{uᵀ M u}_{c}
+	(1-γ)² \underbrace{\symbf{v}ᵀ\symbf{M} \symbf{v}}_{a} +
+	  2γ(1-γ) \underbrace{\symbf{u}ᵀ\symbf{M} \symbf{v}}_{b} +
+	    γ² \underbrace{\symbf{u}ᵀ\symbf{M} \symbf{u}}_{c}
 		\\
 	&amp;=
 	(1 + γ² - 2γ)a + (2γ - 2γ²)b + γ² c
 		\\
 	&amp;=
 	(a -2b + c) γ² + 2 (b-a) γ + a
-\end{aligned}\]</p><p>The boundary values are</p><p class="math-container">\[σ₀ = σ(0) = a \text{and} σ₁ = σ(1) = c.\]</p><p>If <span>$(a-2b+c) &gt; 0 ⇔ a-b &gt; b-c$</span>, then the parabola is convex and has its global minimum where the derivative is zero:</p><p class="math-container">\[2(a - 2b + c) y^* + 2(b-a) \stackrel{!}= 0
+\end{aligned}\]</p><p>The variables <span>$a, b$</span> and <span>$c$</span> are scalar. The boundary values are</p><p class="math-container">\[σ₀ = σ(0) = a \text{and} σ₁ = σ(1) = c.\]</p><p>If <span>$(a-2b+c) &gt; 0 ⇔ a-b &gt; b-c$</span>, then the parabola is convex and has its global minimum where the derivative is zero:</p><p class="math-container">\[2(a - 2b + c) y^* + 2(b-a) \stackrel{!}= 0
  ⇔
 	γ^* = \frac{-2(b-a)}{2(a -2 b + c)}
 		= \frac{a-b}{(a-b)+(c-b)}\]</p><p>If <span>$a-b &lt; b -c$</span>, the parabola is concave and this is a maximum. The extremal value is</p><p class="math-container">\[σ_* = σ(γ^*)
@@ -61,7 +63,7 @@ end</code></pre><pre class="documenter-example-output"><code class="nohighlight 
 	α = fill(T(1/num_objfs), num_objfs)
 
 	# 2) Build symmetric matrix of gradient-gradient products
-	# `_M` will be a temporary, upper triangular matrix
+	# # `_M` will be a temporary, upper triangular matrix
 	_M = zeros(T, num_objfs, num_objfs)
 	for (i,gi) = enumerate(grads)
 		for (j, gj) = enumerate(grads)
@@ -69,7 +71,7 @@ end</code></pre><pre class="documenter-example-output"><code class="nohighlight 
 			_M[i,j] = gi&#39;gj
 		end
 	end
-	### mirror `_M` to get the full symmetric matrix
+	# # mirror `_M` to get the full symmetric matrix
 	M = LA.Symmetric(_M, :U)
 
 	# 3) Solver iteration
@@ -95,4 +97,4 @@ end</code></pre><pre class="documenter-example-output"><code class="nohighlight 
 	# return -sum(α .* grads) # somehow, broadcasting leads to type instability here,
 	# see also https://discourse.julialang.org/t/type-stability-issues-when-broadcasting/92715
 	return mapreduce(*, +, α, grads)
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">frank_wolfe_multidir_dual (generic function with 1 method)</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Wednesday 19 April 2023 13:28">Wednesday 19 April 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">frank_wolfe_multidir_dual (generic function with 1 method)</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Monday 24 April 2023 14:24">Monday 24 April 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
