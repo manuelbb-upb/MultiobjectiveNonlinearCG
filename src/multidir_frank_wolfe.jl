@@ -49,20 +49,23 @@ This leads to the following procedure:
 
 Let's discuss step 2. 
 Luckily, we can indeed (easily) compute the minimizing stepsize.
-Suppose ``v ∈ ℝⁿ`` and ``u ∈ ℝⁿ`` are vectors and ``M ∈ ℝ^{n×n}`` is a **symmetric** 
-square matrix. What is the minimum of 
+Suppose ``\symbf v ∈ ℝⁿ`` and ``\symbf u ∈ ℝⁿ`` are vectors and 
+``\symbf M ∈ ℝ^{n×n}`` is a **symmetric** 
+square matrix. What is the minimum of the following function?
 ```math
-σ(γ) = ( (1-γ) v + γ u )ᵀ M ( (1-γ) v + γ u) ?   (γ ∈ [0,1])
+σ(γ) = ( (1-γ) \symbf v + γ \symbf u )ᵀ \symbf M ( (1-γ) \symbf v + γ \symbf u) \qquad  (γ ∈ [0,1])
 ```
 
 We have
 ```math
 σ(γ) \begin{aligned}[t]
 	&=
-	( (1-γ) v + γ u )ᵀ M ( (1-γ) v + γ u )
+	( (1-γ) \symbf v + γ \symbf u )ᵀ\symbf{M} ( (1-γ) \symbf v + γ \symbf{u})
 		\\
 	&=
-	(1-γ)² \underbrace{vᵀ M v}_{a} + 2γ(1-γ) \underbrace{uᵀ M v}_{b} + γ² \underbrace{uᵀ M u}_{c}
+	(1-γ)² \underbrace{\symbf{v}ᵀ\symbf{M} \symbf{v}}_{a} + 
+	  2γ(1-γ) \underbrace{\symbf{u}ᵀ\symbf{M} \symbf{v}}_{b} + 
+	    γ² \underbrace{\symbf{u}ᵀ\symbf{M} \symbf{u}}_{c}
 		\\
 	&=
 	(1 + γ² - 2γ)a + (2γ - 2γ²)b + γ² c 
@@ -71,6 +74,7 @@ We have
 	(a -2b + c) γ² + 2 (b-a) γ + a
 \end{aligned}
 ```
+The variables $a, b$ and $c$ are scalar.
 The boundary values are
 ```math
 σ₀ = σ(0) = a \text{and} σ₁ = σ(1) = c.
@@ -146,7 +150,7 @@ function frank_wolfe_multidir_dual(grads; max_iter=10_000, eps_abs=1e-5)
 	α = fill(T(1/num_objfs), num_objfs)
 
 	## 2) Build symmetric matrix of gradient-gradient products
-	## `_M` will be a temporary, upper triangular matrix
+	## # `_M` will be a temporary, upper triangular matrix
 	_M = zeros(T, num_objfs, num_objfs)
 	for (i,gi) = enumerate(grads)
 		for (j, gj) = enumerate(grads)
@@ -154,7 +158,7 @@ function frank_wolfe_multidir_dual(grads; max_iter=10_000, eps_abs=1e-5)
 			_M[i,j] = gi'gj
 		end
 	end
-	### mirror `_M` to get the full symmetric matrix
+	## # mirror `_M` to get the full symmetric matrix
 	M = LA.Symmetric(_M, :U)
 
 	## 3) Solver iteration
