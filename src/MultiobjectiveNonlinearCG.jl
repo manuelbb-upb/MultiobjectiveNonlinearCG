@@ -2,38 +2,56 @@ module MultiobjectiveNonlinearCG
 
 const MIN_PRECISION = Float32;
 
-abstract type AbstractStepsizeRule end
-abstract type AbstractStepsizeCache end
+abstract type AbstractStoppingCriterion end
+
+function stop_before_iteration(::AbstractStoppingCriterion, it_index, x, fx, DfxT, d, objf!, jacT!, meta)::Bool
+    return false
+end
+
+function stop_after_iteration(::AbstractStoppingCriterion, it_index, x, fx, DfxT, d, objf!, jacT!, meta)::Bool
+    return false
+end
+
+function check_criteria(stopping_criteria, crit_eval_func, args...)
+    do_iteration = true
+    for crit in stopping_criteria
+        if crit_eval_func(crit, args...)
+            do_iteration = false
+            break
+        end
+    end
+    return do_iteration  
+end
+
+function check_criteria_before(stopping_criteria, args...)
+    return check_criteria(stopping_criteria, stop_before_iteration, args...)
+end
+function check_criteria_after(stopping_criteria, args...)
+    return check_criteria(stopping_criteria, stop_after_iteration, args...)
+end
 
 abstract type AbstractDirRule end
 abstract type AbstractDirCache end
 
-stepsize_rule(::AbstractDirRule)::AbstractStepsizeRule=nothing
-
+# mandatory
 function init_cache(::AbstractDirRule, x, fx, DfxT, d, objf!, jacT!, meta)::AbstractDirCache
     return nothing
 end
 
-function init_cache(::AbstractStepsizeRule, x, fx, DfxT, d, objf!, jacT!, meta)::AbstractDirCache
-    return nothing
+# mandatory
+function first_step!(descent_cache::AbstractDirCache, d, x, fx, DfxT, objf!, jacT!, meta)::Nothing
+    @error "No implementation of `first_step!` for `$(descent_cache)`."
 end
 
-function stepsize(::AbstractStepsizeCache, x, fx, DfxT, d, objf!, jacT!, meta)::Number
-    return nothing
+# optional, but likely needed
+function step!(descent_cache::AbstractDirCache, d, x, fx, DfxT, objf!, jacT!, meta)::Nothing
+    return first_step!(descent_cache, d, x, fx, DfxT, objf!, jacT!, meta)
 end
 
-Base.@kwdef struct FixedStepsize{F} <: AbstractStepsizeRule
-    stepsize :: F = MIN_PRECISION(1e-3)
-end    
-
-Base.@kwdef struct SteepestDescent{SR<:AbstractStepsizeRule} <: AbstractDirRule 
-    stepsize_rule :: SR = FixedStepsize()
+# optional
+function stop_after(descent_cache::AbstractDirCache, it_index, d, x, fx, DfxT, objf!, jacT!, meta)::Bool
+    return false
 end
-
-struct SteepestDescentCache{SD} <: AbstractDirCache
-end
-
-include("multidir_frank_wolfe.jl")
 
 struct MetaDataDev1
     dim_in :: Int
@@ -48,12 +66,14 @@ end
 
 MetaData = MetaDataDev2
 
+include("dir_rules/all_rules.jl")
+
 function optimize(
     x0 :: AbstractVector{X}, fx0::AbstractVector{Y}, objf!, jacT!;
     max_iter=100,
-    descent_rule=SteepestDescent(),
+    descent_rule=SteepestDescentRule(FixedStepsizeRule()),
+    stopping_criteria = Any[]
 ) where {X<:Number, Y<:Number}
-    @assert !isempty(objectives) "There are no objective functions."
 
     # initialize/prealloc iterates:
     T = Base.promote_type(MIN_PRECISION, X, Y)
@@ -71,33 +91,38 @@ function optimize(
     # prealloc array for step `d`
     d = similar(x)
 
+    # if there are iterations, perform first iteration and allocate `descent_cache`
     if max_iter > 0
-        descent_cache, stepsize_cache = first_iteration!(x, fx, DfxT, d, objf!, jacT!, descent_rule, meta)
+        if check_criteria_before(stopping_criteria, 1, x, fx, DfxT, d, objf!, jacT!, meta)
+            jacT!(DfxT, x)
+            descent_cache = init_cache(descent_rule, x, fx, DfxT, d, objf!, jacT!, meta)
+            first_step!(descent_cache, d, x, fx, DfxT, objf!, jacT!, meta)
+            x .+= d
+            objf!(fx, x)
+        end
     end
-end
+    if (
+        check_criteria_after(stopping_criteria, 1, x, fx, DfxT, d, objf!, jacT!, meta) &&
+        !stop_after(descent_cache, 1, d, x, fx, DfxT, objf!, jacT!, meta)
+    )
+        for it_ind=2:max_iter
+            if check_criteria_before(stopping_criteria, it_ind, x, fx, DfxT, d, objf!, jacT!, meta)
+                jacT!(DfxT, x)
+                step!(descent_cache, d, x, fx, DfxT, objf!, jacT!, meta)
+                x .+= d
+                objf!(fx, x)
 
-function first_iteration!(
-    # mutated
-    x, fx, DfxT, d,
-    # not-mutated
-    objf!, jacT!, descent_rule, meta
-)
-    jacT!(DfxT, x)
+                if (
+                    !check_criteria_after(stopping_criteria, it_ind, x, fx, DfxT, d, objf!, jacT!, meta) ||
+                    stop_after(descent_cache, it_ind, d, x, fx, DfxT, objf!, jacT!, meta)
+                )
+                    break
+                end
+            end
+        end        
+    end
 
-    descent_cache = init_cache(descent_rule, x, fx, DfxT, d, objf!, jacT!, meta)
-    first_direction!(descent_cache, d, x, fx, DfxT, objf!, jacT!, meta)
-    stepsz_rule = stepsize_rule(descent_rule)
-    stepsize_cache = init_cache(stepsz_rule, x, fx, DfxT, d, objf!, jacT!, meta)
-    σ = stepsize(stepsize_cache, descent_cache, x, fx, DfxT, d, objf!, jacT!, meta)
-    x .+= σ .* d
-    return descent_cache, stepsize_cache
-end
-
-function iterate!(
-    # mutated:
-
-    # not mutated:
-)
+    return x, fx
 end
 
 end

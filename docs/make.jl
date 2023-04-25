@@ -5,7 +5,7 @@ using Literate
 
 function make_literate()
     Literate.markdown(
-        joinpath(@__DIR__, "..", "src", "multidir_frank_wolfe.jl"),
+        joinpath(@__DIR__, "..", "src", "dir_rules", "multidir_frank_wolfe.jl"),
         joinpath(@__DIR__, "src", "generated");
         documenter=true
     )
