@@ -4,6 +4,7 @@ abstract type AbstractStepsizeCache end
 function init_stepsize_cache(::AbstractStepsizeRule, x, fx, DfxT, d, objf!, jacT!, meta)::AbstractStepsizeCache
     return nothing
 end
+
 function apply_stepsize!(dir, ::AbstractStepsizeCache, descent_cache, x, fx, DfxT, objf!, jacT!, meta)::Nothing
     return error("`apply_stepsize!` not implemented.")
 end
@@ -59,9 +60,9 @@ function apply_stepsize!(dir, sc::StandardArmijoCache, descent_cache, x, fx, Dfx
 
     a = sc.a
     b = sc.b
-    ω = descent_cache.criticality[]
-    ε = eps(σ * b^10)
-    while Φx - Φx_ < a * ω && σ > ε
+    ω = criticality(descent_cache)
+    ε = eps(σ * b^15)
+    while Φx - Φx_ < a * σ * ω && σ > ε
         σ *= b
         dir .*= b
         x_ .= x .+ dir
@@ -69,4 +70,50 @@ function apply_stepsize!(dir, sc::StandardArmijoCache, descent_cache, x, fx, Dfx
         Φx_ = maximum(fx_)
     end
     return nothing
-end    
+end
+
+Base.@kwdef struct ModifiedArmijoRule{A<:Real, B<:Real, M<:Real} <: AbstractStepsizeRule
+    a :: A = MIN_PRECISION(1e-4)
+    b :: B = MIN_PRECISION(0.5)
+    σ_init :: M = MIN_PRECISION(1)
+end
+
+struct ModifiedArmijoCache{A, B, M, X, Y} <: AbstractStepsizeCache
+    a :: A
+    b :: B
+    σ_init :: M
+    x :: X
+    fx :: Y
+end
+
+function init_stepsize_cache(sr::ModifiedArmijoRule, x, fx, DfxT, d, objf!, jacT!, meta)
+    T = meta.precision
+    return ModifiedArmijoCache(T(sr.a), T(sr.b), T(sr.σ_init), copy(x), copy(fx))
+end
+
+function apply_stepsize!(dir, sc::ModifiedArmijoCache, descent_cache, x, fx, DfxT, objf!, jacT!, meta)
+    x_ = sc.x
+    fx_ = sc.fx
+
+    Φx = maximum(fx)
+    
+    σ = sc.σ_init
+    dir .*= σ
+    
+    x_ .= x .+ dir
+    objf!(fx_, x_)
+    Φx_ = maximum(fx_)
+
+    a = sc.a
+    b = sc.b
+    ω = sum( dir.^2 )
+    ε = eps(σ * b^15)
+    while Φx - Φx_ < a * σ^2 * ω && σ > ε
+        σ *= b
+        dir .*= b
+        x_ .= x .+ dir
+        objf!(fx_, x_)
+        Φx_ = maximum(fx_)
+    end
+    return nothing
+end
