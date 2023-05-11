@@ -9,6 +9,11 @@ function make_literate()
         joinpath(@__DIR__, "src", "generated");
         documenter=true
     )
+    Literate.markdown(
+        joinpath(@__DIR__, "src" , "literate_jl", "two_parabolas.jl"),
+        joinpath(@__DIR__, "src", "generated");
+        documenter=true
+    )
     return nothing
 end
 
@@ -23,6 +28,7 @@ makedocs(
     modules = [MultiobjectiveNonlinearCG], 
     pages = [
         "Frank-Wolfe Solver" => "generated/multidir_frank_wolfe.md",
+        "2 Parabolas" => "generated/two_parabolas.md",
     ],
 )
 

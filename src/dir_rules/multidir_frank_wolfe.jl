@@ -141,7 +141,7 @@ end
 
 import LinearAlgebra as LA
 #-
-function frank_wolfe_multidir_dual(grads; max_iter=10_000, eps_abs=1e-5)
+function frank_wolfe_multidir_dual(grads; max_iter=10_000, eps_abs=1e-6)
 
 	num_objfs = length(grads)
 	T = Base.promote_type(Float32, mapreduce(eltype, promote_type, grads))
@@ -184,4 +184,93 @@ function frank_wolfe_multidir_dual(grads; max_iter=10_000, eps_abs=1e-5)
 	## return -sum(α .* grads) # somehow, broadcasting leads to type instability here, 
 	## see also https://discourse.julialang.org/t/type-stability-issues-when-broadcasting/92715
 	return mapreduce(*, +, α, grads)
+end
+
+# ### Caching
+
+#=
+Looking into `frank_wolfe_multidir_dual`, we see that in each execution there are 
+allocations.
+As the function is called repeatedly in some outer loop, it might proof beneficial to 
+pre-allocate these arrays and use a cached version of the algorithm:
+=#
+
+struct FrankWolfeCache{T}
+	α :: Vector{T}
+	_α :: Vector{T}
+	_M :: Matrix{T}
+	u :: Vector{T}
+	sol :: Vector{T}
+end
+
+# The initializer works just as in `frank_wolfe_multidir_dual`:
+function init_frank_wolfe_cache(grads)
+	num_objfs = length(grads)
+	T = Base.promote_type(Float32, mapreduce(eltype, promote_type, grads))
+	return init_frank_wolfe_cache(T, num_objfs)
+end
+
+function init_frank_wolfe_cache(T, num_objfs)
+	## 1) Initialize ``α`` vector. There are smarter ways to do this...
+	α = fill(T(1/num_objfs), num_objfs)
+	_α = copy(α)
+	
+	## 2) Build symmetric matrix of gradient-gradient products
+	## # `_M` will be a temporary, upper triangular matrix
+	_M = zeros(T, num_objfs, num_objfs)
+
+	## seed vector
+	u = zeros(T, num_objfs)
+
+	## solution vector
+	sol = copy(u)
+	return FrankWolfeCache(α, _α, _M, u, sol)
+end
+
+# Of course, the new method ends in "!" to show that it mutates the cache.
+# Also, we return the negative solution here, to avoid unnecessary multiplications later on:
+function frank_wolfe_multidir_dual!(fw_cache::FrankWolfeCache{T}, grads; max_iter=10_000, eps_abs=1e-6) where T
+	# NOTE Here, the `@unpack` macro would be nice #src
+	## Unpack working arrays from cache:
+	α = fw_cache.α
+	_α = fw_cache._α
+	_M = fw_cache._M
+	u = fw_cache.u
+	sol = fw_cache.sol
+	
+	## 2) Build symmetric matrix of gradient-gradient products
+	for (i,gi) = enumerate(grads)
+		for (j, gj) = enumerate(grads)
+			j<i && continue
+			_M[i,j] = gi'gj
+		end
+	end
+	## # mirror `_M` to get the full symmetric matrix
+	M = LA.Symmetric(_M, :U)
+
+	## 3) Solver iteration
+	_α .= α    				# to keep track of change
+	for _=1:max_iter
+		t = argmin( M*α )
+		v = α
+		fill!(u, 0)
+		u[t] = one(T)
+		
+		γ, _ = min_chull2(M, v, u)
+
+		α .*= (1-γ)
+		α[t] += γ
+
+		if sum( abs.( _α .- α ) ) <= eps_abs
+			break
+		end
+		_α .= α
+	end
+	
+	fill!(sol, zero(T))
+	for (αℓ, gℓ) in zip(α, grads)
+		sol .-= αℓ .* gℓ
+	end
+	
+	return nothing
 end
