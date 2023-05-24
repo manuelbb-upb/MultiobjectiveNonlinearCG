@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Frank-Wolfe Solver · MultiobjectiveNonlinearCG</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/custom.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href>MultiobjectiveNonlinearCG</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Frank-Wolfe Solver</a><ul class="internal"><li><a class="tocitem" href="#Finding-the-Stepsize"><span>Finding the Stepsize</span></a></li><li><a class="tocitem" href="#Completed-Algorithm"><span>Completed Algorithm</span></a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Frank-Wolfe Solver</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Frank-Wolfe Solver</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/manuelbb-upb/MultiobjectiveNonlinearCG/blob/main/src/dir_rules/multidir_frank_wolfe.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Custom-Frank-Wolfe-Solver..."><a class="docs-heading-anchor" href="#Custom-Frank-Wolfe-Solver...">Custom Frank-Wolfe Solver...</a><a id="Custom-Frank-Wolfe-Solver...-1"></a><a class="docs-heading-anchor-permalink" href="#Custom-Frank-Wolfe-Solver..." title="Permalink"></a></h1><p>... to compute the multi-objective steepest descent direction cheaply. For unconstrained problems, the direction can be computed by projecting <span>$\symbf{0}\in ℝ^n$</span> onto the convex hull of the negative objective gradients. This can be done easily with <code>JuMP</code> and a suitable solver (e.g., <code>COSMO</code>).</p><p>In “Multi-Task Learning as Multi-Objective Optimization” by Sener &amp; Koltun, the authors employ a variant of the Frank-Wolfe-type algorithms defined in “Revisiting Frank-Wolfe: Projection-Free Sparse Convex Optimization” by Jaggi.</p><p>The objective for the projection problem is</p><p class="math-container">\[F(\symbf{α})
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Frank-Wolfe Solver · MultiobjectiveNonlinearCG</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/custom.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../alice_bob_plot/">MultiobjectiveNonlinearCG</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../alice_bob_plot/">Pareto Optimality</a></li><li class="is-active"><a class="tocitem" href>Frank-Wolfe Solver</a><ul class="internal"><li><a class="tocitem" href="#Finding-the-Stepsize"><span>Finding the Stepsize</span></a></li><li><a class="tocitem" href="#Completed-Algorithm"><span>Completed Algorithm</span></a></li></ul></li><li><a class="tocitem" href="../two_parabolas/">2 Parabolas</a></li><li><a class="tocitem" href="../two_rosenbrock/">2 Rosenbrocks</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Frank-Wolfe Solver</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Frank-Wolfe Solver</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/manuelbb-upb/MultiobjectiveNonlinearCG/blob/main/src/dir_rules/multidir_frank_wolfe.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Custom-Frank-Wolfe-Solver..."><a class="docs-heading-anchor" href="#Custom-Frank-Wolfe-Solver...">Custom Frank-Wolfe Solver...</a><a id="Custom-Frank-Wolfe-Solver...-1"></a><a class="docs-heading-anchor-permalink" href="#Custom-Frank-Wolfe-Solver..." title="Permalink"></a></h1><p>... to compute the multi-objective steepest descent direction cheaply. For unconstrained problems, the direction can be computed by projecting <span>$\symbf{0}\in ℝ^n$</span> onto the convex hull of the negative objective gradients. This can be done easily with <code>JuMP</code> and a suitable solver (e.g., <code>COSMO</code>).</p><p>In “Multi-Task Learning as Multi-Objective Optimization” by Sener &amp; Koltun, the authors employ a variant of the Frank-Wolfe-type algorithms defined in “Revisiting Frank-Wolfe: Projection-Free Sparse Convex Optimization” by Jaggi.</p><p>The objective for the projection problem is</p><p class="math-container">\[F(\symbf{α})
 = \frac{1}{2} ‖ \sum_{i=1}^K αᵢ ∇fᵢ ‖_2^2
 = \frac{1}{2} ‖ \nabla \symbf{f}^T \symbf{α} ‖_2^2
 = \frac{1}{2} \symbf a^T \nabla \symbf{f} \nabla \symbf{f}^T \symbf {α}\]</p><p>Hence,</p><p class="math-container">\[\nabla F(\symbf{α})
@@ -54,7 +54,7 @@ end</code></pre><pre class="documenter-example-output"><code class="nohighlight 
 	b = u&#39;Mv
 	c = u&#39;M*u
 	return min_quad(a,b,c)
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">min_chull2 (generic function with 1 method)</code></pre><h2 id="Completed-Algorithm"><a class="docs-heading-anchor" href="#Completed-Algorithm">Completed Algorithm</a><a id="Completed-Algorithm-1"></a><a class="docs-heading-anchor-permalink" href="#Completed-Algorithm" title="Permalink"></a></h2><p>The stepsize computation is the most difficult part. Now, we only have to care about stopping and can complete the solver for our sub-problem:</p><pre><code class="language-julia hljs">import LinearAlgebra as LA</code></pre><pre><code class="language-julia hljs">function frank_wolfe_multidir_dual(grads; max_iter=10_000, eps_abs=1e-5)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">min_chull2 (generic function with 1 method)</code></pre><h2 id="Completed-Algorithm"><a class="docs-heading-anchor" href="#Completed-Algorithm">Completed Algorithm</a><a id="Completed-Algorithm-1"></a><a class="docs-heading-anchor-permalink" href="#Completed-Algorithm" title="Permalink"></a></h2><p>The stepsize computation is the most difficult part. Now, we only have to care about stopping and can complete the solver for our sub-problem:</p><pre><code class="language-julia hljs">import LinearAlgebra as LA</code></pre><pre><code class="language-julia hljs">function frank_wolfe_multidir_dual(grads; max_iter=10_000, eps_abs=1e-6)
 
 	num_objfs = length(grads)
 	T = Base.promote_type(Float32, mapreduce(eltype, promote_type, grads))
@@ -97,4 +97,74 @@ end</code></pre><pre class="documenter-example-output"><code class="nohighlight 
 	# return -sum(α .* grads) # somehow, broadcasting leads to type instability here,
 	# see also https://discourse.julialang.org/t/type-stability-issues-when-broadcasting/92715
 	return mapreduce(*, +, α, grads)
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">frank_wolfe_multidir_dual (generic function with 1 method)</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Wednesday 26 April 2023 15:48">Wednesday 26 April 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">frank_wolfe_multidir_dual (generic function with 1 method)</code></pre><h3 id="Caching"><a class="docs-heading-anchor" href="#Caching">Caching</a><a id="Caching-1"></a><a class="docs-heading-anchor-permalink" href="#Caching" title="Permalink"></a></h3><p>Looking into <code>frank_wolfe_multidir_dual</code>, we see that in each execution there are allocations. As the function is called repeatedly in some outer loop, it might proof beneficial to pre-allocate these arrays and use a cached version of the algorithm:</p><pre><code class="language-julia hljs">struct FrankWolfeCache{T}
+	α :: Vector{T}
+	_α :: Vector{T}
+	_M :: Matrix{T}
+	u :: Vector{T}
+	sol :: Vector{T}
+end</code></pre><p>The initializer works just as in <code>frank_wolfe_multidir_dual</code>:</p><pre><code class="language-julia hljs">function init_frank_wolfe_cache(grads)
+	num_objfs = length(grads)
+	T = Base.promote_type(Float32, mapreduce(eltype, promote_type, grads))
+	return init_frank_wolfe_cache(T, num_objfs)
+end
+
+function init_frank_wolfe_cache(T, num_vars, num_objfs)
+	# 1) Initialize ``α`` vector. There are smarter ways to do this...
+	α = fill(T(1/num_objfs), num_objfs)
+	_α = copy(α)
+
+	# 2) Build symmetric matrix of gradient-gradient products
+	# # `_M` will be a temporary, upper triangular matrix
+	_M = zeros(T, num_objfs, num_objfs)
+
+	# seed vector
+	u = zeros(T, num_objfs)
+
+	# solution vector
+	sol = zeros(T, num_vars)
+	return FrankWolfeCache(α, _α, _M, u, sol)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">init_frank_wolfe_cache (generic function with 2 methods)</code></pre><p>Of course, the new method ends in &quot;!&quot; to show that it mutates the cache. Also, we return the negative solution here, to avoid unnecessary multiplications later on:</p><pre><code class="language-julia hljs">function frank_wolfe_multidir_dual!(fw_cache::FrankWolfeCache{T}, grads; max_iter=10_000, eps_abs=1e-6) where T
+	# Unpack working arrays from cache:
+	α = fw_cache.α
+	_α = fw_cache._α
+	_M = fw_cache._M
+	u = fw_cache.u
+	sol = fw_cache.sol
+
+	# 2) Build symmetric matrix of gradient-gradient products
+	for (i,gi) = enumerate(grads)
+		for (j, gj) = enumerate(grads)
+			j&lt;i &amp;&amp; continue
+			_M[i,j] = gi&#39;gj
+		end
+	end
+	# # mirror `_M` to get the full symmetric matrix
+	M = LA.Symmetric(_M, :U)
+
+	# 3) Solver iteration
+	_α .= α    				# to keep track of change
+	for _=1:max_iter
+		t = argmin( M*α )
+		v = α
+		fill!(u, 0)
+		u[t] = one(T)
+
+		γ, _ = min_chull2(M, v, u)
+
+		α .*= (1-γ)
+		α[t] += γ
+
+		if sum( abs.( _α .- α ) ) &lt;= eps_abs
+			break
+		end
+		_α .= α
+	end
+
+	fill!(sol, zero(T))
+	for (αℓ, gℓ) in zip(α, grads)
+		sol .-= αℓ .* gℓ
+	end
+
+	return nothing
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">frank_wolfe_multidir_dual! (generic function with 1 method)</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../alice_bob_plot/">« Pareto Optimality</a><a class="docs-footer-nextpage" href="../two_parabolas/">2 Parabolas »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Wednesday 24 May 2023 16:31">Wednesday 24 May 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
