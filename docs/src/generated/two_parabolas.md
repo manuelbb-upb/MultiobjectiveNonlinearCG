@@ -2,7 +2,10 @@
 EditURL = "<unknown>/docs/src/literate_jl/two_parabolas.jl"
 ```
 
-This file is meant to be parsed by Literate.jl
+````@example two_parabolas
+include(joinpath(joinpath("..", "literate_jl"), "makie_theme.jl")) #hide
+nothing #hide
+````
 
 # Two-Parabolas Example
 
@@ -54,7 +57,8 @@ function jacT!(DfxT, x)
 end
 
 # initialize starting values
-x0 = [π, -2*ℯ]
+import Random
+x0 = 10 .* [-π, 2*ℯ]
 fx0 = zeros(2)
 objf!(fx0, x0)
 ````
@@ -77,15 +81,80 @@ We are nearly ready to go.
 A maximum number of iterations can be provided by the `max_iter` keyword argument.
 
 ````@example two_parabolas
-max_iter = 1000
+max_iter = 100
 ````
 
 There is also a set of default stopping criteria, which can be inspected by looking
 at `M.DEFAULT_CALLBACKS`.
+To have a fair comparison, we reset them.
+Additionally, we use a special gathering callback to later plot the iterates:
 
 ````@example two_parabolas
-x_fin, fx_fin = M.optimize(x0, fx0, objf!, jacT!; max_iter)
+cache1 = M.GatheringCallbackCache(Float64)
+callbacks = [
+  M.CriticalityStop(; eps_crit=1e-6),
+  M.GatheringCallback(cache1),
+]
+
+x_fin, fx_fin, stop_code, meta1 = M.optimize(
+  x0, objf!, jacT!;
+  objf_is_mutating=true,
+  jacT_is_mutating=true,
+  fx0, max_iter, callbacks, descent_rule,
+)
+meta1.num_iter[]
 ````
+
+## Optimize with Modified PRP Direction
+First initialize the gathering callback for this trial:
+
+````@example two_parabolas
+cache2 = M.GatheringCallbackCache(Float64)
+callbacks = [
+  M.CriticalityStop(; eps_crit=1e-6),
+  M.GatheringCallback(cache2),
+]
+````
+
+Now, test some non-linear conjugate gradient direction:
+
+````@example two_parabolas
+descent_rule = M.PRP(M.ModifiedArmijoRule(), :sd)
+#descent_rule = M.FRRestart(M.ModifiedArmijoRule(), :sd)
+x_fin, fx_fin, stop_code, meta2 = M.optimize(
+  x0, objf!, jacT!;
+  objf_is_mutating=true,
+  jacT_is_mutating=true,
+  fx0, max_iter, callbacks, descent_rule,
+)
+meta2.num_iter[]
+````
+
+## Plotting the results
+
+````@example two_parabolas
+# We use `CairoMakie` for plotting.
+using CairoMakie
+using Printf
+set_theme!(DOC_THEME) #hide
+
+# the `let` block is optional and used just to avoid polluting the global scope
+let
+  fig = Figure()
+  ax = Axis(fig[1,1]; aspect=1)
+
+  colors = Makie.wong_colors()
+  lines!(ax, [(-1,-1), (1,1)]; linewidth=10f0, label="PS", color=colors[1])
+  scatterlines!(ax, Tuple.(cache1.x_arr), label="sd ($(meta1.num_iter))", color=colors[2])
+  scatterlines!(ax, Tuple.(cache2.x_arr), label="prp ($(meta2.num_iter))", color=colors[3])
+
+  axislegend(ax)
+
+  fig
+end
+````
+
+Both runs finish after two iterations :)
 
 ---
 

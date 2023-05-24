@@ -204,6 +204,7 @@ struct FrankWolfeCache{T}
 	_α :: Vector{T}
 	_M :: Matrix{T}
 	u :: Vector{T}
+	sol :: Vector{T}
 end
 ````
 
@@ -216,7 +217,7 @@ function init_frank_wolfe_cache(grads)
 	return init_frank_wolfe_cache(T, num_objfs)
 end
 
-function init_frank_wolfe_cache(T, num_objfs)
+function init_frank_wolfe_cache(T, num_vars, num_objfs)
 	# 1) Initialize ``α`` vector. There are smarter ways to do this...
 	α = fill(T(1/num_objfs), num_objfs)
 	_α = copy(α)
@@ -227,11 +228,15 @@ function init_frank_wolfe_cache(T, num_objfs)
 
 	# seed vector
 	u = zeros(T, num_objfs)
-	return FrankWolfeCache(α, _α, _M, u)
+
+	# solution vector
+	sol = zeros(T, num_vars)
+	return FrankWolfeCache(α, _α, _M, u, sol)
 end
 ````
 
-Of course, the new method ends in "!" to show that it mutates the cache:
+Of course, the new method ends in "!" to show that it mutates the cache.
+Also, we return the negative solution here, to avoid unnecessary multiplications later on:
 
 ````@example multidir_frank_wolfe
 function frank_wolfe_multidir_dual!(fw_cache::FrankWolfeCache{T}, grads; max_iter=10_000, eps_abs=1e-6) where T
@@ -240,6 +245,7 @@ function frank_wolfe_multidir_dual!(fw_cache::FrankWolfeCache{T}, grads; max_ite
 	_α = fw_cache._α
 	_M = fw_cache._M
 	u = fw_cache.u
+	sol = fw_cache.sol
 
 	# 2) Build symmetric matrix of gradient-gradient products
 	for (i,gi) = enumerate(grads)
@@ -270,9 +276,12 @@ function frank_wolfe_multidir_dual!(fw_cache::FrankWolfeCache{T}, grads; max_ite
 		_α .= α
 	end
 
-	# return -sum(α .* grads) # somehow, broadcasting leads to type instability here,
-	# see also https://discourse.julialang.org/t/type-stability-issues-when-broadcasting/92715
-	return mapreduce(*, +, α, grads)
+	fill!(sol, zero(T))
+	for (αℓ, gℓ) in zip(α, grads)
+		sol .-= αℓ .* gℓ
+	end
+
+	return nothing
 end
 ````
 

@@ -2,7 +2,7 @@
 
 julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "22143fdcd698964b6259708bfa3e1d7aef6f6e98"
+project_hash = "6a06f45b3e15a519b61b7bb5b9cc37da7a3ecb4a"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -469,6 +469,12 @@ git-tree-sha1 = "42c6b37c6a2242cb646a1dd5518631db0be9b967"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 version = "1.8.1"
 
+[[deps.HaltonSequences]]
+deps = ["Primes"]
+git-tree-sha1 = "0a7bfd4cc9b8d66e4519caf3f500b02404acf651"
+uuid = "13907d55-377f-55d6-a9d6-25ac19e11b95"
+version = "0.2.0"
+
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg"]
 git-tree-sha1 = "129acf094d168394e80ee1dc4bc06ec835e510a3"
@@ -544,6 +550,11 @@ version = "1.0.0"
 git-tree-sha1 = "5cd07aab533df5170988219191dfad0519391428"
 uuid = "d25df0c9-e2be-5dd7-82c8-3ad0b3e990b9"
 version = "0.1.3"
+
+[[deps.IntegerMathUtils]]
+git-tree-sha1 = "f366daebdfb079fd1fe4e3d560f99a0c892e15bc"
+uuid = "18e54dd8-cb9d-406c-a71d-865a43cbb235"
+version = "0.1.0"
 
 [[deps.IntelOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1101,6 +1112,12 @@ deps = ["TOML"]
 git-tree-sha1 = "47e5f437cc0e7ef2ce8406ce1e7e24d44915f88d"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
 version = "1.3.0"
+
+[[deps.Primes]]
+deps = ["IntegerMathUtils"]
+git-tree-sha1 = "311a2aa90a64076ea0fac2ad7492e914e6feeb81"
+uuid = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
+version = "0.5.3"
 
 [[deps.Printf]]
 deps = ["Unicode"]

@@ -128,13 +128,13 @@ function initialize_for_optimization(
     return x, fx, DfxT, meta
 end
 
-function __optimize(
+function _optimize(
     x0::AbstractVector{X}, fx0::AbstractVector{Y}, 
     DfxT0::AbstractMatrix{<:Real}, objf!, jacT!;
     ensure_fx0=true,
     ensure_DfxT0=true,
     max_iter=1_000,
-    descent_rule=SteepestDescentRule(FixedStepsizeRule()),
+    descent_rule=SteepestDescentRule(StandardArmijoRule()),
     callbacks = DEFAULT_CALLBACKS,
     loglevel = Logging.Info
 ) where {X<:Number, Y<:Number}
@@ -206,74 +206,61 @@ function __optimize(
     return x, fx, stop_code, meta
 end
 
-function _optimize(
-    x0::AbstractVector{X}, objf, jacT, 
-    objf_iip::Val{true}, jacT_iip::Union{Val{false}, Val{true}};
-    kwargs...
-) where {X<:Real}
-    error("""
-        The objective function is specified to be mutating, i.e., it has signature
-        `objf!(fx, x)`. We need a pre-allocated container for the objective values `fx`."""
-    )
-end
-
-function _optimize(
-    x0::AbstractVector{X}, objf, jacT, 
-    objf_iip::Val{false}, jacT_iip::Union{Val{false}, Val{true}};
-    kwargs...
-) where {X<:Real}
-    fx0 = objf(x0)
-    return _optimize(x0, fx0, objf, jacT, objf_iip, jacT_iip; ensure_fx0=false, kwargs...)
-end
-
-function _optimize(
-    x0::AbstractVector{X}, fx0::AbstractVector{Y}, objf, jacT, 
-    objf_iip::Union{Val{false}, Val{true}}, jacT_iip::Union{Val{false}, Val{true}};
-    kwargs...
-) where {X<:Real, Y<:Real}
-    dim_in = length(x0)
-    dim_out = length(fx0)
-
-    T = Base.promote_type(MIN_PRECISION, X, Y)
-    DfxT0 = zeros(T, dim_in, dim_out)
-
-    return _optimize(x0, fx0, DfxT0, objf, jacT, objf_iip, jacT_iip; ensure_DfxT0=true, kwargs...)
-end
-
-function _optimize(
-    x0::AbstractVector{X}, fx0::AbstractVector{Y}, DfxT0::AbstractMatrix{D}, objf, jacT, 
-    objf_iip::Val{false}, jacT_iip::Union{Val{true},Val{false}};
-    kwargs...
-) where {X<:Real, Y<:Real, D<:Real}
-    function objf!(y, x)
-        y .= objf(x)
-        return nothing
-    end    
-    return _optimize(x0, fx0, DfxT0, objf!, jacT, Val(true), jacT_iip; kwargs...)
-end
-
-function _optimize(
-    x0::AbstractVector{X}, fx0::AbstractVector{Y}, DfxT0::AbstractMatrix{D}, objf!, jacT, 
-    objf_iip::Val{true}, jacT_iip::Val{false};
-    kwargs...
-) where {X<:Real, Y<:Real, D<:Real}
-    function jacT!(DfxT, x)
-        DfxT .= jacT(x)
-        return nothing
+function make_mutating(func)
+    return function(y, args...)
+        y .= func(args...)
     end
-    return _optimize(x0, fx0, DfxT0, objf!, jacT!, objf_iip, Val(true); kwargs...)
 end
 
-function _optimize(
-    x0::AbstractVector{X}, fx0::AbstractVector{Y}, DfxT0::AbstractMatrix{D}, objf!, jacT!, 
-    objf_iip::Val{true}, jacT_iip::Val{true};
+function optimize(
+    x0::AbstractVector{X}, objf, jacT;
+    objf_is_mutating::Bool=false, jacT_is_mutating::Bool=false,
+    fx0::Union{AbstractVector{<:Real}, Nothing}=nothing,
+    DfxT0::Union{AbstractMatrix{<:Real}, Nothing}=nothing,
     kwargs...
-) where {X<:Real, Y<:Real, D<:Real}
-    return __optimize(x0, fx0, DfxT0, objf!, jacT!; kwargs...)
+) where {X<:Real}
+    if objf_is_mutating
+        objf! = objf
+        @assert !isnothing(fx0) "For a mutating objective function, please provide a pre-allocated objective vector with kwarg `fx0`."
+        fx_0 = fx0
+        ensure_fx0 = get(kwargs, :ensure_fx0, true)
+    else
+        fx_0 = objf(x0)
+        objf! = make_mutating(objf)
+        ensure_fx0 = false
+    end
+
+    jacT! = if jacT_is_mutating
+        jacT
+    else
+        make_mutating(jacT)
+    end
+
+    if isnothing(DfxT0)
+        T = Base.promote_type(MIN_PRECISION, X, eltype(fx_0))
+        DfxT_0 = zeros(T, length(x0), length(fx_0))
+    else
+        @assert size(DfxT0) == (length(x0), length(fx_0)) "Transposed jacobian array `DfxT0` must have size ($(length(x0)), $(length(fx_0)))."
+        DfxT_0 = DfxT0
+    end
+    ensure_DfxT0 = true
+
+    return _optimize(x0, fx_0, DfxT_0, objf!, jacT!; ensure_fx0, ensure_DfxT0, kwargs...)
 end
 
-function optimize(args...; objf_iip::Bool=true, jacT_iip::Bool=true, kwargs...)
-    return _optimize(args..., Val(objf_iip), Val(jacT_iip); kwargs...)
+function improve(
+    x0::AbstractVector{X}, fx0::AbstractVector{Y}, 
+    objf!, jacT!; DfxT0=nothing, kwargs...
+) where{X<:Real, Y<:Real}
+    if isnothing(DfxT0)
+        T = Base.promote_type(MIN_PRECISION, X, Y)
+        DfxT_0 = zeros(T, length(x0), length(fx_0))
+    else
+        @assert size(DfxT0) == (length(x0), length(fx_0)) "Transposed jacobian array `DfxT0` must have size ($(length(x0)), $(length(fx_0)))."
+        DfxT_0 = DfxT0
+    end
+
+    return _optimize(x0, fx0, DfxT_0, objf!, jacT!)
 end
 
 end

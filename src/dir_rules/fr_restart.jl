@@ -1,7 +1,7 @@
 # Fletcher-Reeves
 
 @with_kw struct FRRestart{SR} <: AbstractDirRule
-    stepsize_rule :: SR
+    stepsize_rule :: SR = ModifiedArmijoRule()
     criticality_measure :: Symbol = :cg
     
     @assert criticality_measure == :cg || criticality_measure == :sd
@@ -29,7 +29,7 @@ function init_cache(descent_rule::FRRestart, x, fx, DfxT, d, objf!, jacT!, meta)
     T = meta.precision
     stepsize_cache = init_stepsize_cache(descent_rule.stepsize_rule, x, fx, DfxT, d, objf!, jacT!, meta)
     ## cache for convex optimizer
-    fw_cache = init_frank_wolfe_cache(T, meta.dim_out)
+    fw_cache = init_frank_wolfe_cache(T, meta.dim_in, meta.dim_out)
     return FRRestartCache(
         Ref(zero(T)),
         Ref(zero(T)),
@@ -77,6 +77,7 @@ function step!(dc::FRRestartCache, d, x, fx, DfxT, objf!, jacT!, meta)
     θ += dc.phi[]
     θ /= ω
 
+    # β = = φₖ(δₖ) / φₖ₋₁ (δₖ₋₁)
     β = dc.sd_norm_squared[] / ω
 
     if θ < 0

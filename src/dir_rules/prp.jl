@@ -12,7 +12,7 @@ descent.
   the standard measure, `:cg` uses a measure inherent to the "conjugate-gradient" direction.
 """
 @with_kw struct PRP{SR} <: AbstractDirRule
-    stepsize_rule :: SR
+    stepsize_rule :: SR = ModifiedArmijoRule()
     criticality_measure :: Symbol = :cg
 
     @assert criticality_measure == :cg || criticality_measure == :sd
@@ -43,7 +43,7 @@ function init_cache(descent_rule::PRP, x, fx, DfxT, d, objf!, jacT!, meta)
     T = meta.precision
     stepsize_cache = init_stepsize_cache(descent_rule.stepsize_rule, x, fx, DfxT, d, objf!, jacT!, meta)
     ## cache for convex optimizer
-    fw_cache = init_frank_wolfe_cache(T, meta.dim_out)
+    fw_cache = init_frank_wolfe_cache(T, meta.dim_in, meta.dim_out)
     return PRPCache(
         Ref(zero(T)),
         Ref(zero(T)),
@@ -137,7 +137,6 @@ function step!(dc::PRPCache, d, x, fx, DfxT, objf!, jacT!, meta)
     end
     y .= d     # set `y` to current steepest descent direction for next iteration
     d .+= dtmp # set `d` to conjugate gradient direction
-
     dc.phi[] = abs(maximum(d'DfxT))
 
     if dc.criticality_measure == :sd

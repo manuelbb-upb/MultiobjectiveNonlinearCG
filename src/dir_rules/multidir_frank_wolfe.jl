@@ -210,7 +210,7 @@ function init_frank_wolfe_cache(grads)
 	return init_frank_wolfe_cache(T, num_objfs)
 end
 
-function init_frank_wolfe_cache(T, num_objfs)
+function init_frank_wolfe_cache(T, num_vars, num_objfs)
 	## 1) Initialize ``α`` vector. There are smarter ways to do this...
 	α = fill(T(1/num_objfs), num_objfs)
 	_α = copy(α)
@@ -223,7 +223,7 @@ function init_frank_wolfe_cache(T, num_objfs)
 	u = zeros(T, num_objfs)
 
 	## solution vector
-	sol = copy(u)
+	sol = zeros(T, num_vars)
 	return FrankWolfeCache(α, _α, _M, u, sol)
 end
 

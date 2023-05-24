@@ -213,7 +213,6 @@ function callback_before_iteration!(m::MaxIterStoppingCache, descent_cache, it_i
     end
 end
 
-
 struct GatheringCallbackCache{T} <: AbstractCallbackCache
     x_arr :: Vector{Vector{T}}
     fx_arr :: Vector{Vector{T}}

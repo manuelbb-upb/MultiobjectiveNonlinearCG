@@ -22,8 +22,9 @@ a_2 = 1.2
 
 f1 = x -> sum( 100 * ( x[2:end] .- x[1:end-1].^2 ).^2 + (a_1 .- x[1:end-1]).^2 )
 f2 = x -> sum( 100 * ( x[2:end] .- x[1:end-1].^2 ).^2 + (a_2 .- x[1:end-1]).^2 )
+f3 = x -> sum( 100 * ( x[2:end] .- x[1:end-1].^2 ).^2 + (a_1*a_2 .- x[1:end-1]).^2 )
 
-f = x -> [f1(x); f2(x)]
+f = x -> [f1(x); f2(x); f3(x)]
 Df = x -> transpose(FD.jacobian(f, x))
 
 rand_x0 = () -> LB .+ (UB .- LB) .* rand(2)
@@ -96,6 +97,12 @@ exps = (
 results = do_experiments(exps; max_iter = 50)
 #%%
 import ColorSchemes
+cols = ColorSchemes.acton10.colors
+num_cols = length(cols)
+colorscale = [
+    [(i-1)/(num_cols-1), "rgb($(c.r),$(c.g),$(c.b))"]
+    for (i,c) = enumerate(cols)
+]
 #let
     xlims, ylims = get_lims(results)
     X1 = collect(LinRange(xlims..., 150))
@@ -103,15 +110,30 @@ import ColorSchemes
     Z = [log10(crit_map(x1, x2)) for x1=X1, x2=X2]
     levels = contour(;
         x=X1, y=X2, z=Z, transpose=false, line_width=0.1,
-        colorscale=ColorSchemes.acton10.colors, 
+        colorscale,
         #ncontours=30, 
         smoothing=1.3,
+        colorbar_dtick=1,
+        colorbar_tickprefix="10^",
         contours_start=floor(Int, minimum(Z)),
         contours_end=8,
-        contours_size=0.5
+        contours_size=0.25
     )
-    #=for res in results
-        plot!(fig, res.x[1,:], res.x[2,:]; markershape=:circle, label=string(res.name))
-    end=#
-    plot(levels)
+    all_plots=GenericTrace[levels,]
+    for res in results
+        #plot!(levels, res.x[1,:], res.x[2,:]; markershape=:circle, label=string(res.name))
+        push!(
+            all_plots, 
+            scatter(;x=res.x[1,:], y=res.x[2,:], name=string(res.name), mode="lines+markers")
+        )
+    end
+    fig = Plot(
+        all_plots, 
+        Layout(;title="Criticality", legend_x=1.2, width=480, height=320);
+        config=PlotConfig(;responsive=false)
+    )
 #end
+import PlotlyBase: to_html
+open(joinpath(ENV["HOME"], "Pictures", "testplot2.html"), "w") do io
+    to_html(io, fig; include_plotlyjs="directory")
+end

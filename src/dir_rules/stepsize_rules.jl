@@ -112,7 +112,6 @@ function apply_stepsize!(dir, sc::StandardArmijoCache, descent_cache, x, fx, Dfx
         objf!(fx_, x_)
         Φx_ = maximum(fx_)
     end
-
     return nothing
 end
 
