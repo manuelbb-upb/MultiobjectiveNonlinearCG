@@ -1,8 +1,6 @@
 # This file is meant to be parsed by Literate.jl #src
 using Pkg #src
 Pkg.activate(joinpath(@__DIR__, "..", "..")) #src
-include(joinpath(@__DIR__, "makie_theme.jl")) #hide
-nothing #hide
 
 # # Two-Parabolas Example
 
@@ -113,20 +111,25 @@ x_fin, fx_fin, stop_code, meta2 = M.optimize(
 meta2.num_iter[]
 
 # ## Plotting the results
-## We use `CairoMakie` for plotting.
+# We use `CairoMakie` for plotting.
 using CairoMakie
 using Printf
-set_theme!(DOC_THEME) #hide
+
+# Additionally, there is some custom definitions in an external file:
+include(joinpath(@__DIR__, "makie_theme.jl"))
+set_theme!(DOC_THEME)
 
 ## the `let` block is optional and used just to avoid polluting the global scope
 let
   fig = Figure()
   ax = Axis(fig[1,1]; aspect=1)
 
-  colors = Makie.wong_colors()
-  lines!(ax, [(-1,-1), (1,1)]; linewidth=10f0, label="PS", color=colors[1]) 
-  scatterlines!(ax, Tuple.(cache1.x_arr), label="sd ($(meta1.num_iter))", color=colors[2])
-  scatterlines!(ax, Tuple.(cache2.x_arr), label="prp ($(meta2.num_iter))", color=colors[3])
+  lines!(ax, [(-1,-1), (1,1)]; 
+    linewidth=10f0, label="PS", color=DOC_COLORS[:PS], linestyle=DOC_LSTYLES[:PS]) 
+  scatterlines!(ax, Tuple.(cache1.x_arr);
+    label="sd ($(meta1.num_iter))", color=DOC_COLORS[:sd], linestyle=DOC_LSTYLES[:sd])
+  scatterlines!(ax, Tuple.(cache2.x_arr);
+    label="prp ($(meta2.num_iter))", color=DOC_COLORS[:prpMinMax], linstyle=DOC_LSTYLES[:prpMinMax])
 
   axislegend(ax)
 
