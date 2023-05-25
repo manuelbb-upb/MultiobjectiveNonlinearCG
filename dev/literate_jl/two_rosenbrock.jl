@@ -1,8 +1,6 @@
 # This file is meant to be parsed by Literate.jl #src
 using Pkg #src
 Pkg.activate(joinpath(@__DIR__, "..", "..")) #src
-include(joinpath(@__DIR__, "makie_theme.jl")) #hide
-nothing #hide
 
 # # Two Rosenbrock Functions
 
@@ -33,18 +31,19 @@ Its gradient is
         -2b x_1^2 + 2b x_2
     \end{bmatrix}.
 ```
-Let's plot the Rosenbrock function's contours to see the valley:
+Let's plot the Rosenbrock function's contours to see the valley.
+We use `CairoMakie` for plotting.
 =#
-#%% #src
-## We use `CairoMakie` for plotting.
 using CairoMakie
 using Printf
+# Moreover, there are some custom definitions in an external file:
+include(joinpath(@__DIR__, "makie_theme.jl"))
+nothing #hide
 
 ## Define the function:
 f(x1, x2, a, b) = b * (x2 - x1^2)^2 + (a - x1)^2
 
 ## I am using a `let` block here to not pollute the global scope ...
-colors = Makie.wong_colors()
 let
     set_theme!(DOC_THEME2) #hide
     ## evaluation range
@@ -62,7 +61,7 @@ let
     ## plot filled contours in left axis
     ax1 = Axis(fig[2,2]; aspect=1, title=L"f(x_1, x_2)", ylabelvisible=false)
     c = contourf!(ax1, X1, X2, F)
-    scatter!(ax1, (1, 1))
+    scatter!(ax1, (1, 1); color=DOC_COLORS[:min])
     ## and also give it a colorbar
     Colorbar(fig[2,1], c; 
         flipaxis=false, ticks=[0, 1e3, 2e3, 3e3], 
@@ -72,7 +71,7 @@ let
     ## plot log contours in right axis
     ax2 = Axis(fig[2,3], aspect=1, title=L"\log(f(x_1, x_2)))")
     c = contourf!(ax2, X1, X2, log10 ∘ F)
-    scatter!(ax2, (1, 1))
+    scatter!(ax2, (1, 1); color=DOC_COLORS[:min])
     Colorbar(fig[2,4], c;
         ticks=[-2, -1, 0, 1, 2, 3], 
     )
@@ -178,12 +177,12 @@ let
 
     ## plot Pareto set into both axes
     A = LinRange(a1, a2, 100)
-    lines!(ax1, A, A.^2; color=colors[1], label="PS")
-    lines!(ax2, A, A.^2; color=colors[1], label="PS")
+    lines!(ax1, A, A.^2; color=DOC_COLORS[:PS], label="PS")
+    lines!(ax2, A, A.^2; color=DOC_COLORS[:PS], label="PS")
 
     ## plot minima
-    scatter!(ax1, (a1, a1^2); color=colors[2])
-    scatter!(ax2, (a2, a2^2); color=colors[3])
+    scatter!(ax1, (a1, a1^2); color=DOC_COLORS[:min])
+    scatter!(ax2, (a2, a2^2); color=DOC_COLORS[:min])
 
     ## make colorbars have nice size
     rowsize!(fig.layout, 2, Aspect(2,1))
@@ -294,16 +293,20 @@ let
 
     ## plot Pareto set into both axes
     A = LinRange(a1, a2, 100)
-    lines!(ax1, A, A.^2; color=colors[1], label="PS")
-    lines!(ax2, A, A.^2; color=colors[1], label="PS")
+    lines!(ax1, A, A.^2; color=DOC_COLORS[:PS], label="PS")
+    lines!(ax2, A, A.^2; color=DOC_COLORS[:PS], label="PS")
 
     ## make colorbars have nice size
     rowsize!(fig.layout, 2, Aspect(2,1))
 
-    scatterlines!(ax1, X_prp; markersize=10f0, color=colors[5], label="prp")
-    scatterlines!(ax1, X_sd; markersize=10f0, color=colors[4], label="sd")
-    scatterlines!(ax2, X_prp; markersize=10f0, color=colors[5], label="prp")
-    scatterlines!(ax2, X_sd; markersize=10f0, color=colors[4], label="sd")
+    scatterlines!(ax1, X_prp; 
+        markersize=10f0, label="prp", color=DOC_COLORS[:prpMinMax], linestyle=DOC_LSTYLES[:prpMinMax])
+    scatterlines!(ax1, X_sd; 
+        markersize=10f0, label="sd", color=DOC_COLORS[:sd], linestyle=DOC_LSTYLES[:sd])
+    scatterlines!(ax2, X_prp; 
+        markersize=10f0, label="prp", color=DOC_COLORS[:prpMinMax], linestyle=DOC_LSTYLES[:prpMinMax])
+    scatterlines!(ax2, X_sd; 
+        markersize=10f0, label="sd", color=DOC_COLORS[:sd], linestyle=DOC_LSTYLES[:sd])
 
     ## activate legend
     axislegend(ax1; position=:lb)
@@ -338,10 +341,12 @@ let
     
     ## plot Pareto set into both axes
     A = LinRange(a1, a2, 100)
-    lines!(ax, A, A.^2; color=colors[1], label="PS", linewidth=5f0) 
+    lines!(ax, A, A.^2; color=DOC_COLORS[:PS], label="PS", linewidth=5f0) 
     
-    scatterlines!(ax, X_prp; markersize=10f0, color=colors[5], label="prp")
-    scatterlines!(ax, X_sd; markersize=10f0, color=colors[6], label="sd")
+    scatterlines!(ax, X_prp;
+        markersize=10f0, label="prp", color=DOC_COLORS[:prpMinMax], linestyle=DOC_LSTYLES[:prpMinMax])
+    scatterlines!(ax, X_sd; 
+        markersize=10f0, label="sd", color=DOC_COLORS[:sd], linestyle=DOC_LSTYLES[:sd])
     
     axislegend(ax)
     fig

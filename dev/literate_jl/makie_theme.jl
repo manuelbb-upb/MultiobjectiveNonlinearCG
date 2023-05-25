@@ -1,4 +1,4 @@
-import Makie: Theme, Contourf
+import CairoMakie: Makie, Theme, Contourf
 using LaTeXStrings
 
 DOC_DPI = 300
@@ -11,7 +11,7 @@ DOC_THEME = Theme(
     resolution = DOC_RESOLUTION,
     markersize = 40f0,
     fontsize = 38f0,
-    linewidth = 4f0,
+    linewidth = 6f0,
     colormap=:acton,
     Label = (
         fontsize=42f0,
@@ -43,4 +43,23 @@ DOC_THEME2 = Theme(
         xlabelsize = 40f0,
         ylabelsize = 40f0,
     ),
+)
+
+WONG_COLORS = Makie.wong_colors()
+DOC_COLORS = Dict(
+    :PS => WONG_COLORS[3], 
+    :PF => WONG_COLORS[3],
+    :min => WONG_COLORS[5],
+    :sd => WONG_COLORS[6], 
+    :prpMinMax => WONG_COLORS[1],
+    :prpOrth => WONG_COLORS[1], 
+    :frRestart => WONG_COLORS[2],
+)
+DOC_LSTYLES = Dict(
+    :PS => :solid,
+    :PF => :solid,
+    :sd => :solid,
+    :prpMinMax => :solid,
+    :prpOrth => :dash,
+    :frRestart => :solid,
 )
