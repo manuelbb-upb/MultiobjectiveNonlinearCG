@@ -1,4 +1,4 @@
-import CairoMakie: Theme, Contourf
+import CairoMakie: Makie, Theme, Contourf
 using LaTeXStrings
 
 DOC_DPI = 300
