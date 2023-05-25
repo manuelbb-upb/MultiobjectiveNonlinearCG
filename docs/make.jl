@@ -55,6 +55,6 @@ makedocs(
 # See "Hosting Documentation" and deploydocs() in the Documenter manual
 # for more information.
 deploydocs(
-    repo = "github.com/manuelbb-upb/MultiobjectiveNonlinearCG.jl.git",
+    repo = "github.com/manuelbb-upb/MultiobjectiveNonlinearCG.git",
     devbranch = "main"
 )
