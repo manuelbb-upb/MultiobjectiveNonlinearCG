@@ -17,12 +17,12 @@ function armijo_rhs(sc::ModifiedArmijoCache, dc::SteepestDescentCache)
     return dc.sd_norm_squared[]
 end
 
-function init_cache(descent_rule::SteepestDescentRule, x, fx, DfxT, d, objf!, jacT!, meta)
+function init_cache(descent_rule::SteepestDescentRule, x, fx, DfxT, d, objf!, jacT!, objf_and_jacT!, meta)
     T = meta.precision
     stepsize_cache = init_stepsize_cache(descent_rule.stepsize_rule, x, fx, DfxT, d, objf!, jacT!, meta)
     ## cache for convex optimizer
     fw_cache = init_frank_wolfe_cache(T, meta.dim_in, meta.dim_out)
-    return SteepestDescentCache(Ref(zero(T)), stepsize_cache, fw_cache)
+    return SteepestDescentCache(Ref(typemax(T)), stepsize_cache, fw_cache)
 end
 
 function set_steepest_descent!(fw_cache, DfxT)

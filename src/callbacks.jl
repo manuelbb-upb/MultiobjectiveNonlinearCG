@@ -171,13 +171,13 @@ function init_callback_cache(
     return CriticalityStopCache(sc.eps_crit, sc.print_message)
 end
 
-function callback_after_iteration!(sc::CriticalityStopCache, descent_cache, it_index, x, fx, DfxT, d, objf!, jacT!, meta)::Tuple{String, Int}
+function callback_before_iteration!(sc::CriticalityStopCache, descent_cache, it_index, x, fx, DfxT, d, objf!, jacT!, meta)::Tuple{String, Int}
     ω = criticality(descent_cache)
-    do_stop = ω <= sc.eps_crit
+    do_stop = it_index > 1 && ω <= sc.eps_crit
 
     if do_stop 
         msg = !sc.print_message ? "" : @sprintf("""
-            Stopping after iteration %d because an absolute stopping criterion was placed on the criticality.
+            Stopping before iteration %d because an absolute stopping criterion was placed on the criticality.
             We have %.4e = ω <= ε_crit = %.4ef.
         """, it_index, ω, sc.eps_crit)
         return msg, -3

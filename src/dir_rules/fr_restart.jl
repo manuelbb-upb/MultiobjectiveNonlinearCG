@@ -25,14 +25,14 @@ function armijo_rhs(sc::ModifiedArmijoCache, dc::FRRestartCache)
     return sum(dc.d_prev.^2)
 end
 
-function init_cache(descent_rule::FRRestart, x, fx, DfxT, d, objf!, jacT!, meta)
+function init_cache(descent_rule::FRRestart, x, fx, DfxT, d, objf!, jacT!, objf_and_jacT!, meta)
     T = meta.precision
     stepsize_cache = init_stepsize_cache(descent_rule.stepsize_rule, x, fx, DfxT, d, objf!, jacT!, meta)
     ## cache for convex optimizer
     fw_cache = init_frank_wolfe_cache(T, meta.dim_in, meta.dim_out)
     return FRRestartCache(
-        Ref(zero(T)),
-        Ref(zero(T)),
+        Ref(typemax(T)),
+        Ref(typemax(T)),
         copy(d),
         descent_rule.criticality_measure,
         stepsize_cache,
