@@ -1,6 +1,9 @@
 # This file is meant to be parsed by Literate.jl #src
+if !(joinpath(@__DIR__, "..", "..") in LOAD_PATH) #src
+    push!(LOAD_PATH, joinpath(@__DIR__, "..", "..")) #src
+end #src
 using Pkg #src
-Pkg.activate(joinpath(@__DIR__, "..", "..")) #src
+Pkg.activate(@__DIR__) #src
 
 # # Two Rosenbrock Functions
 
@@ -348,6 +351,77 @@ let
     scatterlines!(ax, X_sd; 
         markersize=10f0, label="sd", color=DOC_COLORS[:sd], linestyle=DOC_LSTYLES[:sd])
     
+    axislegend(ax)
+    fig
+end
+
+# ## Statistics
+
+using Statistics
+# The next experiment fixes a set of `num_runs` starting points and tests
+# various methods against each other.
+# We limit the number of iterations and stop only if we are completely critical.
+num_runs = 100
+max_iter = 20
+rand_x0 = () -> -50 .+ 100 .* rand(2)
+X0 = [ rand_x0() for i=1:num_runs ]
+
+# For now, we are only interested in the iteration sites.
+# We extract them from `cache` and store them in `X_it`:
+function do_runs(descent_rule; max_iter=20)
+    X_it = Vector{Vector{Vector{Float64}}}()
+    for x0 in X0
+        cache = M.GatheringCallbackCache(Float64)
+        callbacks = [M.CriticalityStop(;eps_crit=0.0), M.GatheringCallback(cache)]
+        _ = M.optimize(x0, objf, jacT; descent_rule, max_iter, callbacks)
+        
+        x_arr = copy(cache.x_arr)
+        last_x = last(x_arr)
+        for _=length(x_arr)+1:max_iter
+            push!(x_arr, last_x)
+        end
+        push!(X_it, x_arr)
+    end
+    return X_it
+end
+
+# For every run, we want to compute the criticality ``\|\symbf{δ}\|`` at each point:
+crit_map(x) = crit_map(x[1], x[2])
+function crit_index(X_it)
+    crit_vals = crit_map.(X_it)
+    crit_vals ./= first(crit_vals) # “normalize” with respect to first value
+    return crit_vals
+end
+
+# Finally, we do some statistics.
+function consume_results(X_it)
+    C = mapreduce( crit_index, hcat, X_it)
+    μ = vec(mean(C; dims=2))
+    σ = vec(std(C; dims=2))
+    quart1 = quantile.(eachrow(C), 0.25)
+    quart2 = vec(median(C; dims=2))
+    quart3 = quantile.(eachrow(C), 0.75)
+    return μ, σ, quart1, quart2, quart3
+end
+
+# Define the experiments by name and rule:
+names_rules = (
+    sd = M.SteepestDescentRule(M.StandardArmijoRule()),
+    prpMinMax = M.PRP(M.ModifiedArmijoRule(), :sd)
+)
+
+# Run and plot:
+let
+    fig = Figure()
+    ax = Axis(fig[1,1]; yscale=log10, xlabel="it", ylabel="crit")
+    for (name, rule) = pairs(names_rules)
+        X_it = do_runs(rule; max_iter)
+        μ, σ, q1, q2, q3 = consume_results(X_it)
+        it = 0:length(μ)-1
+        lines!(ax, it, μ; label=string(name), color=DOC_COLORS[name])
+        lines!(ax, it, q2; color=DOC_COLORS[name], linestyle=:dash)
+        band!(ax, it, q1, q3; color=(DOC_COLORS[name], 0.2))
+    end
     axislegend(ax)
     fig
 end

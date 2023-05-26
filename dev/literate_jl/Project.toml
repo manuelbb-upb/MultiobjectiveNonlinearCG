@@ -1,0 +1,3 @@
+[deps]
+MultiMLDatasets = "558b1b0f-be74-4e24-a9cd-57b8a919f62e"
+MultiTaskLearning = "810ba223-6144-4a35-b8e7-63c5f44b795a"

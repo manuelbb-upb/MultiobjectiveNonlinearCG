@@ -1,6 +1,9 @@
 # This file is meant to be parsed by Literate.jl #src
+if !(joinpath(@__DIR__, "..", "..") in LOAD_PATH) #src
+    push!(LOAD_PATH, joinpath(@__DIR__, "..", "..")) #src
+end #src
 using Pkg #src
-Pkg.activate(joinpath(@__DIR__, "..", "..")) #src
+Pkg.activate(@__DIR__) #src
 
 # # Two-Parabolas Example
 
@@ -86,7 +89,7 @@ callbacks = [
 x_fin, fx_fin, stop_code, meta1 = M.optimize(
   x0, objf!, jacT!; 
   objf_is_mutating=true,
-  jacT_is_mutating=true,
+  jac_is_mutating=true,
   fx0, max_iter, callbacks, descent_rule,
 )
 meta1.num_iter[]
@@ -105,7 +108,7 @@ descent_rule = M.PRP(M.ModifiedArmijoRule(), :sd)
 x_fin, fx_fin, stop_code, meta2 = M.optimize(
   x0, objf!, jacT!; 
   objf_is_mutating=true,
-  jacT_is_mutating=true,
+  jac_is_mutating=true,
   fx0, max_iter, callbacks, descent_rule,
 )
 meta2.num_iter[]
