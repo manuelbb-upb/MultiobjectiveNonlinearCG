@@ -1,3 +1,7 @@
+using Pkg
+current_env = first(Base.load_path())
+Pkg.activate(@__DIR__)
+
 using Documenter
 using MultiobjectiveNonlinearCG
 
@@ -49,6 +53,7 @@ makedocs(
     ),
     modules = [MultiobjectiveNonlinearCG], 
     pages = [
+        "Home" => "index.md",
         "Pareto Optimality" => "generated/alice_bob_plot.md",
         "Frank-Wolfe Solver" => "generated/multidir_frank_wolfe.md",
         "2 Parabolas" => "generated/two_parabolas.md",
@@ -64,3 +69,5 @@ deploydocs(
     repo = "github.com/manuelbb-upb/MultiobjectiveNonlinearCG.git",
     devbranch = "main"
 )
+
+Pkg.activate(current_env)
