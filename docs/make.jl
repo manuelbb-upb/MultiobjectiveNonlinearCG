@@ -58,7 +58,7 @@ makedocs(
         "Frank-Wolfe Solver" => "generated/multidir_frank_wolfe.md",
         "2 Parabolas" => "generated/two_parabolas.md",
         "2 Rosenbrocks" => "generated/two_rosenbrock.md",
-        "MultiMNIST" => "generated/multi_mnist.md",
+        #"MultiMNIST" => "generated/multi_mnist.md",
     ],
 )
 

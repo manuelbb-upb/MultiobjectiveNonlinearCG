@@ -46,12 +46,48 @@ nothing #hide
 
 # Define the function:
 f(x1, x2, a, b) = b * (x2 - x1^2)^2 + (a - x1)^2
+````
 
+I also want to show the drawbacks of using Standard Gradient Descent,
+so let's do an optimization run.
+The gradient of the Rosenbrock function is known analitically (see above):
+
+````@example two_rosenbrock
+df(x1, x2, a, b) = [
+    -4*b*(x2-x1^2)*x1 - 2*(a-x1),
+    2*b*(x2-x1^2)
+]
+````
+
+For (multi-objective) optimization, we use our package:
+
+````@example two_rosenbrock
+import MultiobjectiveNonlinearCG as M
+````
+
+Setup objective for single objective optimization:
+
+````@example two_rosenbrock
+objf_so = x -> [f(x[1], x[2], 1.0, 100),]
+jacT_so = x -> reshape(df(x[1], x[2], 1.0, 100), :, 1)
+
+# cache for gathering iteration data:
+cache_so = M.GatheringCallbackCache(Float64)
+callbacks_so = [M.GatheringCallback(cache_so),]
+
+descent_rule_so = M.SteepestDescentRule(M.StandardArmijoRule())
+_ = M.optimize([-1.8, 1.3], objf_so, jacT_so;
+    descent_rule=descent_rule_so, max_iter=100, callbacks=callbacks_so)
+````
+
+Let's proceed to plotting:
+
+````@example two_rosenbrock
 # I am using a `let` block here to not pollute the global scope ...
 let
     set_theme!(DOC_THEME2) #hide
     # evaluation range
-    X1 = LinRange(-2, 2, 100)
+    X1 = LinRange(-2.2, 2.2, 100)
     X2 = X1
     # define function for ``a=1, b=100``
     F = (x1, x2) -> f(x1, x2, 1, 100)
@@ -79,6 +115,11 @@ let
     Colorbar(fig[2,4], c;
         ticks=[-2, -1, 0, 1, 2, 3],
     )
+
+    # plot iterates
+    x_it = Tuple.(cache_so.x_arr)
+    scatterlines!(ax1, x_it; markersize=15f0,color=DOC_COLORS[:sd])
+    scatterlines!(ax2, x_it; markersize=15f0,color=DOC_COLORS[:sd])
 
     linkaxes!(ax1, ax2)
 
@@ -201,20 +242,8 @@ end
 
 ## Optimization
 
-For multi-objective optimization, we use our package:
-
 ````@example two_rosenbrock
-import MultiobjectiveNonlinearCG as M
-````
-
-The gradients are known analitically:
-
-````@example two_rosenbrock
-df(x1, x2, a, b) = [
-    -4*b*(x2-x1^2)*x1 - 2*(a-x1),
-    2*b*(x2-x1^2)
-]
-
+# define gradients:
 df1(x1, x2) = df(x1, x2, a1, b1)
 df2(x1, x2) = df(x1, x2, a2, b2)
 ````

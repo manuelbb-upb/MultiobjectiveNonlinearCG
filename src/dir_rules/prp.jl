@@ -114,30 +114,31 @@ function step!(dc::PRPCache, d, x, fx, DfxT, objf!, jacT!, meta)
     @show maximum(minimum(Φ, dims=2))
     @show minimum(maximum(Φ, dims=1))
     =#
-    φmin = typemax(T)
+    φmax = typemin(T)
     for j=1:K
         gj = DfxT[:, j]
         β = gj'y / ω
         θ = gj'd_ / ω
-        # @. dj = d + β * d_ - θ * y
-        @. dj = β * d_ - θ * y
+        @. dj = d + β * d_ - θ * y
+        # @. dj = β * d_ - θ * y
 
-        φmax = typemin(T)
+        φmin = typemax(T)
         for gℓ=eachcol(DfxT)
             _φ = gℓ'dj
-            if _φ >= φmax
-                φmax = _φ
+            if _φ <= φmin
+                φmin = _φ
             end
         end
 
         if φmax <= φmin
-            φmin = φmax
+            φmax = φmin
             dtmp .= dj
         end
     end
     y .= d     # set `y` to current steepest descent direction for next iteration
-    d .+= dtmp # set `d` to conjugate gradient direction
-    dc.phi[] = abs(maximum(d'DfxT))
+    d .= dtmp  # set `d` to conjugate gradient direction
+    # dc.phi[] = abs(maximum(d'DfxT))
+    dc.phi[] = abs(φmax)
 
     if dc.criticality_measure == :sd
         dc.criticality[] = dc.sd_norm_squared[]

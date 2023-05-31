@@ -223,6 +223,7 @@ end
 function make_mutating(func)
     return function(y, args...)
         y .= func(args...)
+        return nothing
     end
 end
 
@@ -380,7 +381,6 @@ function optimize(
         end
     end
     isnothing(fx0) && error("For a mutating objective function, please provide a pre-allocated objective vector with kwarg `fx0`.")
-
     if isnothing(Dfx0)
         T = Base.promote_type(MIN_PRECISION, X, eltype(fx0))
         Dfx0 = zeros(T, length(x0), length(fx0))
