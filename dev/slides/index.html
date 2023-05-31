@@ -1,29 +1,29 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-		<title>Multi-Objective Nonlinear CG</title>
-
-		<link rel="stylesheet" href="dist/reset.css">
-		<link rel="stylesheet" href="dist/reveal.css">
-		<link rel="stylesheet" href="dist/theme/beige.css">
-
-		<!-- Theme used for syntax highlighted code -->
-		<link rel="stylesheet" href="plugin/highlight/monokai.css">
-
-		<style type="text/css">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	
+	<title>Multi-Objective Nonlinear CG</title>
+	
+	<link rel="stylesheet" href="dist/reset.css">
+	<link rel="stylesheet" href="dist/reveal.css">
+	<link rel="stylesheet" href="dist/theme/beige.css">
+	
+	<!-- Theme used for syntax highlighted code -->
+	<link rel="stylesheet" href="plugin/highlight/monokai.css">
+	
+	<style type="text/css">
 		.reveal small {
-    		display: inline-block;
-    		font-size: 0.6em;
-    		line-height: 1.2em;
-    		vertical-align: baseline;
+			display: inline-block;
+			font-size: 0.6em;
+			line-height: 1.2em;
+			vertical-align: baseline;
 		}
 		
 		.reveal .slides>section {
-		height:100%;
-		border: 1px solid black;
+			height:100%;
+			border: 1px solid black;
 		}
 		.reveal .slide .absolute {
 			position: absolute;
@@ -33,473 +33,613 @@
 			font-family: monospace;
 			vertical-align: baseline !important;
 		}
-
+		
 		.fragment.changeDisplayFadeOut {
 			display:inline;
 		}
-
+		
 		.fragment.changeDisplayFadeOut.visible {
 			display:none;
 		}
-
+		
 		.fragment.changeDisplayFadeIn {
 			display:none;
 		}
-
+		
 		.fragment.changeDisplayFadeIn.visible {
 			display:inline;
 		}
-
-		</style>
-	</head>
-	<body>
-		<div class="reveal"
-		style="background-image:url('./assets/upblogo.png');background-position:10px 10px;background-repeat:no-repeat;background-size:100px auto;"
-			>
-			<div class="slides">
-				<section>
-				<span class="absolute" style="top:0"><h3>
-					 Nonlinear Conjugate Gradient Directions with Guaranteed Descent for Smooth Multi-Objective Optimization
-				</h3></span>
-				<img src="./assets/titleimage.png" alt="Titleimage (PRP Projection Scheme)" 
-					style="position:absolute;top:150px;left:290px;width:700px;"/>
-				<div style="position:absolute;bottom:10px;left:10px;text-align:left">
+		
+	</style>
+</head>
+<body>
+	<div class="reveal"
+	style="background-image:url('./assets/upblogo.png');background-position:10px 10px;background-repeat:no-repeat;background-size:100px auto;"
+	>
+	<div class="slides">
+		<section>
+			<span class="absolute" style="top:0"><h3>
+				Nonlinear Conjugate Gradient Directions with Guaranteed Descent for Smooth Multi-Objective Optimization
+			</h3></span>
+			<img src="./assets/titleimage.png" alt="Titleimage (PRP Projection Scheme)" 
+			style="position:absolute;top:150px;left:290px;width:700px;"/>
+			<div style="position:absolute;bottom:10px;left:10px;text-align:left">
 				<small>
-				Manuel Berkemeier <span class="ttext">manuelbb@mail.uni-paderborn.de</span>
-				<br>
-				Sebastian Peitz
+					Manuel Berkemeier <span class="ttext">manuelbb@mail.uni-paderborn.de</span>
+					<br>
+					Sebastian Peitz
 				</small>
-				</div>
-				<div style="position:absolute;bottom:10px;right:10px;">
+			</div>
+			<div style="position:absolute;bottom:10px;right:10px;">
 				GAMM23, Dresden<br/>
 				<small>Paderborn University</small>
-				</div>
-				</section>
-				<section>
-					<h2>Multi-Objective Optimization</h2>
+			</div>
+		</section>
+		<section>
+			<h2>Preliminaries</h2>
+			<ul>
+				<li class="fragment"><b>Target audience:</b>
+					Everyone interested in nonlinear (multi-)objective 
+					optimization. (Little prior knowledge required.)
+				</li>
+				<li class="fragment">
+					Material is available online:<br/>
+					<a href="https://github.com/manuelbb-upb/MultiobjectiveNonlinearCG">
+						https://github.com/manuelbb-upb/MultiobjectiveNonlinearCG
+					</a>
+				</li>
+				<li class="fragment">
+					Preliminary & incomplete, but nonetheless <b>interesting</b> results.
+				</li>
+			</ul>
+		</section>
+		<section>
+			<h2>Multi-Objective Optimization</h2>
+			<ul>
+				<li class="fragment" data-fragment-index="0">
+					Minimize <b>multiple</b> conflicting objective functions
+				</li>
+				<li class="fragment">
+					<b>Example:</b> Alice &#128105; and Bob &#128104; want to meet.
+					<br/>
 					<ul>
-						<li class="fragment" data-fragment-index="0">
-							Minimize <b>multiple</b> conflicting objective functions
-						</li>
-						<li class="fragment">
-						<b>Example:</b> Alice &#128105; and Bob &#128104; want to meet.
-						<br/>
-						<ul>
-							<li>Alice lives at $(1, 1)$ and the distance to her home is
+						<li>Alice lives at $(1, 1)$ and the distance to her home is
 							$$
 							d_A(x_1, x_2) = \sqrt{(x_1 - 1)^2 + (x_2 - 1)^2}
 							$$
-							</li>
-							<li>Bob lives at $(-1, -1)$ and the distance to his home is
+						</li>
+						<li>Bob lives at $(-1, -1)$ and the distance to his home is
 							$$
 							d_B(x_1, x_2) = \sqrt{(x_1 + 1)^2 + (x_2 + 1)^2}
 							$$
-							</li>
-						</ul>
 						</li>
 					</ul>
-				</section>
-				<section>
-					<h2>Multi-Objective Optimization</h2>
-					<div class="r-stack">
-						<img src="./assets/alice_bob_plot0.png">
-						<img class="fragment" src="./assets/alice_bob_plot1.png">
-						<img class="fragment" src="./assets/alice_bob_plot2.png">
-						<img class="fragment" src="./assets/alice_bob_plot3.png">
-						<img class="fragment" src="./assets/alice_bob_plot4.png">
-						<img class="fragment" src="./assets/alice_bob_plot5.png">
-						<img class="fragment" src="./assets/alice_bob_plot6.png">
-					</div>
-				</section>
-				<section>
-					<h2>Multi-Objective Optimization</h2>
-					<ul>
-						<li class="fragment" data-fragment-index="0">
-							Minimize <b>multiple</b> conflicting objective functions
-							<span class="fragment" data-fragment-index="1">
-							\(\ff_1, …, \ff_\dimOut\)
-							</span>
-						<span class="fragment" data-fragment-index="2">
-							\[
-							\min_{\vx \in \RRin} \begin{bmatrix}
-							\ff_1
-							\\
-							\vdots
-							\\
-							\ff_\dimOut
-							\end{bmatrix}
-							=
-							\data{fragment-index=3}{\class{fragment}{\min_{\vx \in \RRin} \vf(\vx)}}
-							\]
-						</span>
-						</li>
-						<li class="fragment" data-fragment-index="4">
-						There are multiple solutions, the <b>Pareto Set</b>.<br/>
-						<span class="fragment" data-fragment-index="5">
+				</li>
+			</ul>
+		</section>
+		<section>
+			<h2>Multi-Objective Optimization</h2>
+			<div class="r-stack">
+				<img width="900px" src="./assets/alice_bob_plot0.png">
+				<img width="900px"  class="fragment" src="./assets/alice_bob_plot1.png">
+				<img width="900px" class="fragment" src="./assets/alice_bob_plot2.png">
+				<img width="900px" class="fragment" src="./assets/alice_bob_plot3.png">
+				<img width="900px" class="fragment" src="./assets/alice_bob_plot4.png">
+				<img width="900px" class="fragment" src="./assets/alice_bob_plot5.png">
+				<img width="900px" class="fragment" src="./assets/alice_bob_plot6.png">
+			</div>
+		</section>
+		<section>
+			<h2>Multi-Objective Optimization</h2>
+			<ul>
+				<li class="fragment" data-fragment-index="0">
+					Minimize <b>multiple</b> conflicting objective functions
+					<span class="fragment" data-fragment-index="1">
+						\(\ff_1, …, \ff_\dimOut\)
+					</span>
+					<span class="fragment" data-fragment-index="2">
+						\[
+						\min_{\vx \in \RRin} \begin{bmatrix}
+						\ff_1
+						\\
+						\vdots
+						\\
+						\ff_\dimOut
+						\end{bmatrix}
+						=
+						\data{fragment-index=3}{\class{fragment}{\min_{\vx \in \RRin} \vf(\vx)}}
+						\]
+					</span>
+				</li>
+				<li class="fragment" data-fragment-index="4">
+					There are multiple solutions, the <b>Pareto Set</b>.<br/>
+					<span class="fragment" data-fragment-index="5">
 						\(\vx^*\) is <b>Pareto-optimal</b> if there is no \(\vx \in \RRin\) that …
-						</span>
-						<ul>
-							<li class="fragment" data-fragment-index="6">
+					</span>
+					<ul>
+						<li class="fragment" data-fragment-index="6">
 							… is as least as good as \(\vx^*\) ⇔ \(\vf(\vx) \leq \vf(\vx^*)\)
-							</li>
-							<li class="fragment" data-fragment-index="7">
+						</li>
+						<li class="fragment" data-fragment-index="7">
 							… is better in some objective ⇔ \(\ff_ℓ(\vx) < \ff_ℓ(\vx^*)\) for $ℓ\in\{1,…,\dimOut\}$.
-							</li>
-						</ul>
 						</li>
 					</ul>
-				</section>
-				<section>
-				<h2>Pareto-Criticality</h2>
-				<ul>
+				</li>
+			</ul>
+		</section>
+		<section>
+			<h2>Pareto-Criticality</h2>
+			<ul>
 				<li class="fragment">Assume smooth objectives with Lipschitz gradients.</li>
 				<li class="fragment">
-				$\vd \in \RRin$ is a <b>descent direction</b> at $\vx \in \RRin$ if
-				$$
-				\langle \gradf_ℓ(\vx), \vd \rangle < 0 \; ∀ℓ\in\{1,…,\dimOut\}
-				⇔
-				\max_{ℓ=1,…,K} \langle \gradf_ℓ(\vx), \vd \rangle < 0
-				$$
-				<span class="fragment">
-				There is some $T>0$ with $\vf(\vx + σ \vd) < \vf(\vx)$ for all $σ\in(0,T)$.</span>
-				<li class="fragment">
-				The vector $\vx^* \in \RRin$ is <b>critical</b> if there is <b>no</b> descent-direction.
-				</li>
-				<li class="fragment">
-				Fermat's Theorem: If $\vx^*$ is locally optimal, then it is also critical.
-				</li>
-				<li class="fragment">
-				Algorithm: Compute descent steps until finding a critical point. <b style="color:red">How?</b>
-				</li>
-				</ul>
+					$\vd \in \RRin$ is a <b>descent direction</b> at $\vx \in \RRin$ if
+					$$
+					\langle \gradf_ℓ(\vx), \vd \rangle < 0 \; ∀ℓ\in\{1,…,\dimOut\}
+					⇔
+					\max_{ℓ=1,…,K} \langle \gradf_ℓ(\vx), \vd \rangle < 0
+					$$
+					<span class="fragment">
+						There is some $T>0$ with $\vf(\vx + σ \vd) < \vf(\vx)$ for all $σ\in(0,T)$.</span>
+						<li class="fragment">
+							The vector $\vx^* \in \RRin$ is <b>critical</b> if there is <b>no</b> descent-direction.
+						</li>
+						<li class="fragment">
+							Fermat's Theorem: If $\vx^*$ is locally optimal, then it is also critical.
+						</li>
+						<li class="fragment">
+							Algorithm: Compute descent steps until finding a critical point. <b style="color:red">How?</b>
+						</li>
+					</ul>
 				</section>
 				<section>
-				<h2>Steepest Descent</h2>
-				<ul>
-				<li>In
-				<div class="r-stack" style="display:inline-grid">
-					<span class="fragment fade-out" data-fragment-index="1">single</span>
-				    <span class="fragment fade-in" data-fragment-index="1">multi</span>
-				</div>-objective optimization, the steepest descent direction at $\vx$ is
-				$$
-				\class{fragment custom changeDisplayFadeOut}{\data{fragment-index=1}{\llap{-\gradf(\vx)}}}
-				\class{fragment custom changeDisplayFadeIn}{\data{fragment-index=1}{\llap{\color{green}\sd(\vx)}}}
-				%}
-				= \argmin_{\vd\in\RRin}
-				\class{fragment fade-in}{\data{fragment-index=1}{{\color{green}\small\max_{ℓ=1,…,K}}}}
-				\langle
-					\phantom{\gradf_ℓ(\vx)}
-					\class{fragment custom changeDisplayFadeOut}{\data{fragment-index=1}{\llap{\gradf(\vx)}}}
-					\class{fragment custom changeDisplayFadeIn}{\data{fragment-index=1}{\llap{\gradf{\color{green}_ℓ}(\vx)}}}
-					,\vd
-				\rangle + \frac{\norm{\vd}^2}{2}
-				$$
-				</li>
-				<li class="fragment" data-fragment-index="2">
-				$\vx$ is critical iff $\sd(\vx) = \ve{0}$.
-				</li>
-				<li class="fragment" data-fragment-index="3">
-				<b>Recipe:</b>
-				<ul>
-				<li>
-				Replace $-\gradf(\vx)$ with $\sd = \sd(\vx)$.
-				</li>
-				<li>
-				Replace $\langle \gradf(\vx), \ve d \rangle$ with $\funcX(\vd) := \max_ℓ \langle \gradf_ℓ(\vx), \ve d \rangle$.
-				</li>
-				<li>
-				Replace $\norm{-\gradf(\vx)}^2$ with $\norm{\sd}^2 = - \funcX(\vd)$.
-				</li>
-				</ul>
-				</li>
-				</ul>
-				<img class="fragment" data-fragment-index="1" width="200px" style="right:10px; bottom:50px; position:absolute" src="./assets/steepest_descent.png" alt="steepest descent plot" />
+					<h2>Steepest Descent</h2>
+					<ul>
+						<li>In
+							<div class="r-stack" style="display:inline-grid">
+								<span class="fragment fade-out" data-fragment-index="1">single</span>
+								<span class="fragment fade-in" data-fragment-index="1">multi</span>
+							</div>-objective optimization, the steepest descent direction at $\vx$ is
+							$$
+							\class{fragment custom changeDisplayFadeOut}{\data{fragment-index=1}{\llap{-\gradf(\vx)}}}
+							\class{fragment custom changeDisplayFadeIn}{\data{fragment-index=1}{\llap{\color{green}\sd(\vx)}}}
+							%}
+							= \argmin_{\vd\in\RRin}
+							\class{fragment fade-in}{\data{fragment-index=1}{{\color{green}\small\max_{ℓ=1,…,K}}}}
+							\langle
+							\phantom{\gradf_ℓ(\vx)}
+							\class{fragment custom changeDisplayFadeOut}{\data{fragment-index=1}{\llap{\gradf(\vx)}}}
+							\class{fragment custom changeDisplayFadeIn}{\data{fragment-index=1}{\llap{\gradf{\color{green}_ℓ}(\vx)}}}
+							,\vd
+							\rangle + \frac{\norm{\vd}^2}{2}
+							$$
+						</li>
+						<li class="fragment" data-fragment-index="2">
+							$\vx$ is critical iff $\sd(\vx) = \ve{0}$.
+						</li>
+						<li class="fragment" data-fragment-index="3">
+							<b>Recipe:</b>
+							<ul>
+								<li>
+									Replace $-\gradf(\vx)$ with $\sd = \sd(\vx)$.
+								</li>
+								<li>
+									Replace $\langle \gradf(\vx), \ve d \rangle$ with $\funcX(\vd) := \max_ℓ \langle \gradf_ℓ(\vx), \ve d \rangle$.
+								</li>
+								<li>
+									Replace $\norm{-\gradf(\vx)}^2$ with $\norm{\sd}^2 = - \funcX(\vd)$.
+								</li>
+							</ul>
+						</li>
+					</ul>
+					<img class="fragment" data-fragment-index="1" width="200px" style="right:10px; bottom:50px; position:absolute" src="./assets/steepest_descent.png" alt="steepest descent plot" />
 				</section>
 				<section>
-				<h2>
-				Nonlinear Conjugate Gradient Methods
-				</h2>
-				<ul>
-				<li class="fragment">
-				Steepest Descent is slow & can get stuck in flat valleys.<br/>
-				<img width="200px" height="150px" src="./assets/1Drosenbrock.png" />
-				</li>
-				<li class="fragment">
-				Linear Conjugate Gradient (CG) method is guaranteed to find the minimum of strictly convex quadratic
-				objective in $\dimIn$ iterations.
-				</li>
-				<li class="fragment">
-				Similar Algorithm is fast for nonlinear objectives as well!
-				</li>
-				</ul>
+					<h2>
+						Nonlinear Conjugate Gradient Methods
+					</h2>
+					<ul>
+						<li class="fragment">
+							Steepest Descent is slow & can get stuck in flat valleys.<br/>
+							<img style="margin-left:100px;" width="500px" src="./assets/so_rosenbrock.png" />
+						</li>
+						<li class="fragment">
+							Linear Conjugate Gradient (CG) method is guaranteed to find the minimum of strictly convex quadratic
+							objective in $\dimIn$ iterations.
+						</li>
+						<li class="fragment">
+							Similar Algorithm is fast for nonlinear objectives as well!
+						</li>
+					</ul>
 				</section>
 				<section>
-				<h2>Single-Objective Nonlinear CG Algorithm</h2>
-				<div style="text-align:left;margin-left:10px;">
-				<p>Let $k\leftarrow 0$.
-				Given a starting point $\vx\iter{0}$, set
-				$\vd\iter{0} \leftarrow -\gradf(\vx\iter{0})$.
-				<br/>
-				If $\norm{\vd\iter{0}}\ne 0$, then go to 3.
-				</p>
-				<ol>
-				<li>Compute $\ve{g}\KK = -\gradf(\vx\iter{0})$.
-				If $\norm{\ve{g}}\KK = 0$, then <b>STOP</b>.
-				<li>Compute factor $β\KK$ according to some formula and
-				$$
-				\vdK \leftarrow \ve{g}\KK + β\KK \vd\iter{k-1}.
-				$$
-				<li>
-				Perform (inexact) line-search to find
-				$\stepsizeK \approx \argmin_{\stepsize > 0} \ff(\vxK + \stepsize \vdK)$.
-				</li>
-				<li>
-				Update $\vx\iter{k+1} \leftarrow \vxK + \stepsizeK \vdK, k\leftarrow k+1$ and go to 1.
-				</li>
-				</ol>
-				</div>
-				</section>
-				<section>
-				<h2>Multi-Objective Nonlinear CG Algorithm</h2>
-				<ul>
-				<li class="fragment" data-fragment-index="1">
-				Can we apply our “recipe” to get a multi-objective algorithm?
-				</li>
-				<li class="fragment" data-fragment-index="2">
-				Yes!
-				<span style="color:gray;font-size:smaller">L. R. Lucambio Pérez and L. F. Prudente, “Nonlinear Conjugate Gradient Methods for Vector Optimization,” SIAM J. Optim., vol. 28, no. 3, pp. 2690–2720, Jan. 2018, doi: 10.1137/17M1126588.</span>
-				</li>
-				<li class="fragment" data-fragment-index="3">
-				<b>But:</b> step-size $\stepsize$ has to satisfy Wolfe conditions
-				$$
-				\begin{aligned}
-				\vf(\vx) - \vf(\vx + \stepsize \vd)&\geq \mathtt{c}_1 \stepsize\max\!_ℓ\langle \gradf_ℓ(\vx), \vd \rangle,
-				\\
-				\class{fragment highlight-red}{\data{fragment-index=5}{
-					\max\!_ℓ\langle \gradf_ℓ(\vx + \stepsize \vd), \vd \rangle
-				}}&\class{fragment highlight-red}{\data{fragment-index=5}{\geq}}
-				\class{fragment highlight-red}{\data{fragment-index=5}{
-					\mathtt{c}_2 \max\!_ℓ\langle \gradf_ℓ(\vx), \vd \rangle.
-				}}
-				\end{aligned}
-				$$
-				</li>
-				<li class="fragment" data-fragment-index="4">More complicated, repeated gradient evaluations, large step-sizes …</li>
-				</ul>
-				</section>
-				<section>
-				<h2>Modifications</h2>
-				<section>
-				<ul>
-				<li class="fragment">
-				$\vdK$ give the <b>sufficient decrease</b> if there is a constant $\sufDecConst > 0$
-				with
-				$$
-				- \funcXK(\vdK) \geq - \sufDecConst \funcXK(\sdK) \; {\color{gray}= \sufDecConst \norm{\sdK}^2} \quad ∀k
-				\tag{SD}
-				$$
-				</li>
-				<li class="fragment">
-				If (SD) holds independent from $\stepsizeK$, then $\vdK$ provide <b>guaranteed</b> descent.
-				</li>
-				<li class="fragment">
-				The <b>modified Armijo condition</b> for $\stepsize > 0$ reads
-				$$
-				\vf(\vx) - \vf(\vx + \stepsize \vd) \geq \mathtt{c}_1 \stepsize^2 \norm{\vd}^2.
-				\tag{AC}
-				$$
-				</li>
-				</ul>
-				</section>
-				<section>
-				<div style="display:block;height:40px"></div>
-				<ul>
-				<li class="fragment">
-				Suppose (SD) and (AC) are fulfilled for all $k$.
-				Then a Zoutendijk condition holds:
-				$$\sum_{k\in ℕ_0} \frac{\norm{\sdK}^4}{\norm{\vdK}^2} < ∞.$$
-				</li>
-				<li class="fragment">
-				For suitable $\vdK$, this can be used to prove
-				$$
-				\liminf_{k\to ∞} \norm{\sdK} = 0.
-				$$
-				</li>
-				</ul>
-				</section>
-				</section>
-				<section>
-				<h2>Restarted Fletcher-Reeves Direction</h2>
-				<section style="text-align:left;padding-left:10px;">
-				Inspired by Zhang et. al [2], for $k\geq 1$, use
-				$$
-				\begin{aligned}
-				\vdK &= θ\KK \sdK + β\KK \vd\iter{k-1},
-				\\
-				θ\KK &= \frac{\funcXK(\vd\iter{k-1}) - \func_{\vx\iter{k-1}}(\vd\iter{k-1})}{\norm{\sd\iter{k-1}}^2},
-				\;
-				β\KK = \frac{\norm{\sdK}^2}{\norm{\sd\iter{k-1}}^2}.
-				\end{aligned}
-				$$
-				But only if $θ\KK \geq 0$. Else $\vdK=\sdK$ (reset).
-				</section>
-				<section style="text-align:left;padding-left:10px;">
-				Sufficient Decrease for $k \geq 1, θ\KK \geq 0$:
-				$$
-				\begin{aligned}
-				\langle \gradf_ℓ(\vxK), \vdK \rangle
-				&\fragment{1}{=
-				\langle \gradf_ℓ(\vxK), θ\KK \sdK + β\KK \vd\iter{k-1} \rangle%
-				}
-				\\
-				&\fragment{2}{=θ\KK \langle \gradf_ℓ(\vxK), \sdK \rangle + β\KK \langle  \gradf_ℓ(\vxK), \vd\iter{k-1}\rangle}
-				\\
-				&\fragment{3}{\leq
-				θ\KK \funcXK(\sdK) + β\KK \funcXK(\vd\iter{k-1})}
-				\\
-				&\fragment{4}{=
-				\funcXK(\sdK)
-				\specialFragment{5}{custom changeDisplayFadeOut}{\frac{\func_{\vx\iter{k-1}}(\vd\iter{k-1})}{\func_{\vx\iter{k-1}}(\sd\iter{k-1})}}
-				\specialFragment{5}{custom changeDisplayFadeIn}{
-					\underbrace{\frac{\func_{\vx\iter{k-1}}(\vd\iter{k-1})}{\func_{\vx\iter{k-1}}(\sd\iter{k-1})}}_{\leq 1\text{ by induction}}}
-				}
-				\end{aligned}
-				$$
-				</section>
-				</section>
-				<section>
-				<h2>Projected Polak-Ribière-Polyak</h2>
-				<section>
-				<div style="display:block;height:40px"></div>
-				<ul>
-				<li class="fragment">Cheng [3] uses the usual PRP coefficient $β\KK$, but projects onto $\gradf(\vxK)^\perp \subseteq \RRin$:
-				$$
-				\vdK = -\gradf(\vxK) + \operatorname{proj}\left(β\KK\vd\iter{k-1}; \gradf(\vxK)^\perp\right)
-				$$
-				</li>
-				<li class="fragment">
-				Cone of non-ascent directions: $\mathcal D = \left\{\vd \in \RRin: \jacf(\vx) \vd \le \ve{0}\right\}.$
-				</li>
-				<li class="fragment">
-				Let $β\KK = \frac{\funcXK(\sd\iter{k-1}-\sdK)}{\norm{\sd\iter{k-1}}^2}$ and use
-				$$\vdK = \sdK + \operatorname{proj}\left(β\KK\vd\iter{k-1}; \mathcal D\right).$$
-				</li>
-				</ul>
-				</section>
-				<section>
-				<div style="display:block;height:40px"></div>
-				<ul>
-				<li class="fragment">Alternative: Projection onto a single orthogonal space is easy.
-				$$
-				\small
-				\operatorname{proj}\left(β\KK\vd\iter{k-1}; \gradf(\vxK)^\perp\right)
-				=
-				\left(
-				\ve I - \frac{\gradf(\vxK)\gradf(\vxK)^T}{\norm{\gradf(\vxK)}^2}
-				\right) β\KK\vd\iter{k-1}
-				$$
-				</li>
-				<li class="fragment">
-				Let
-				$
-				\small\ve{v}_j = \operatorname{proj}\left(β\KK\vd\iter{k-1}; \gradf_j(\vxK)^\perp\right)
-				$
-				and
-				$$
-				\small
-				\bar{\ve{v}} = \argmin_{\ve{v} = \ve{v}_1, …, \ve{v}_\dimOut} \max_{ℓ=1,…,\dimOut} \langle \gradf_ℓ(\vxK), \ve{v} \rangle.
-				$$
-				</li>
-				<li class="fragment">
-				If $\small\funcXK(\bar{\ve{v}}) \leq 0$, take $\small\vdK = \sdK + \bar{\ve{v}}$; and $\small\vdK = \sdK$ otherwise.
-				</li>
-				</ul>
-				</section>
-				</section>
-				<section>
-				<h1>Experiments</h1>
-				</section>
-				<section>
-				<h2>References</h2>
-				<ul style="font-size:smaller;">
-				<li>
-				[1] L. R. Lucambio Pérez and L. F. Prudente, “Nonlinear Conjugate Gradient Methods for Vector Optimization,” SIAM J. Optim., vol. 28, no. 3, pp. 2690–2720, Jan. 2018, doi: 10.1137/17M1126588.
-				<li>
-				[2] L. Zhang, W. Zhou, and D. Li, “Global convergence of a modified Fletcher–Reeves conjugate gradient method with Armijo-type line search,” Numer. Math., vol. 104, no. 4, pp. 561–572, Sep. 2006, doi: 10.1007/s00211-006-0028-z.
-				</li>
-				<li>
-				[3] W. Cheng, “A Two-Term PRP-Based Descent Method,” Numerical Functional Analysis and Optimization, vol. 28, no. 11–12, pp. 1217–1230, Dec. 2007, doi: 10.1080/01630560701749524.
-				</li>
-				</ul>
-				</section>
-			</div>
-		</div>
-
-		<script src="dist/reveal.js"></script>
-		<script src="plugin/notes/notes.js"></script>
-		<script src="plugin/markdown/markdown.js"></script>
-		<script src="plugin/highlight/highlight.js"></script>
-		<script src="plugin/math/math.js"></script>
-		<script>
-			// More info about initialization & config:
-			// - https://revealjs.com/initialization/
-			// - https://revealjs.com/config/
-			Reveal.initialize({
-				hash: true,
-				// respondToHashChanges: false,
-				width: 1280,
-				height: 720,
-				slideNumber: true,
-				sortFragmentsOnSync: false,
-				// Learn about plugins: https://revealjs.com/plugins/
-				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath.MathJax3 ],
-				mathjax3: {
-					mathjax: "https://cdn.jsdelivr.net/npm/mathjax@4.0.0-alpha.1/es5/tex-mml-chtml.js",
-					/*startup : {
-						pageReady: () => {
-							return MathJax.startup.defaultPageReady().then(() => {
-								console.log('MathJax initial typesetting complete');
-								Reveal.sync();
-							});
-						}
-					},*/
-					loader: {load: ['[tex]/html']},
-					tex: {
-						packages: {'[+]': ['html']},
-						macros : {
-							dimIn: "N",
-							dimOut: "K",
-							RRin: "{\\mathbb{R}^\\dimIn}",
-							RRout: "{\\mathbb{R}^\\dimOut}",
-							ve: ["{\\symbf{#1}}", 1],
-							iter: ["^{(#1)}", 1],
-							KK: "\\iter{k}",
-							grad: "\\ve{\\nabla}\\!",
-							stepsize: "\\sigma",
-							stepsizeK: "\\stepsize\\KK",
-							ff: "f",
-							vf: "\\ve{\\ff}",
-							gradf: "\\grad\\ff",
-							jacf: "\\grad\\vf",
-							vx: "\\ve{x}",
-							vd: "\\ve{d}",
-							vxK: "\\vx\\KK",
-							vdK: "\\vd\\KK",
-							sd: "\\ve{δ}",
-							sdK: "\\sd\\KK",
-							argmin: "\\mathop{\\mathrm{arg\\,min}}",
-							norm: ["\\left\\Vert{#1}\\right\\Vert", 1],
-							func: "\\mathfrak{\\ff}",
-							funcX: "\\func_{\\vx}",
-							funcXK: "\\func_{\\vxK}",
-							sufDecConst: "κ_{\\mathrm{sd}}",
-							fragment: ["\\class{fragment}{\\data{fragment-index=#1}{#2}}", 2],
-							specialFragment: ["\\class{fragment #2}{\\data{fragment-index=#1}{#3}}", 3]
-						}
-					},
-				}
-			});
-		</script>
-
-	</body>
-</html>
+					<h2>Single-Objective Nonlinear CG Algorithm</h2>
+					<div style="text-align:left;margin-left:10px;">
+						<p>Let $k\leftarrow 0$.
+							Given a starting point $\vx\iter{0}$, set
+							$\vd\iter{0} \leftarrow -\gradf(\vx\iter{0})$.
+							<br/>
+							If $\norm{\vd\iter{0}}\ne 0$, then go to 3.
+						</p>
+						<ol>
+							<li>Compute $\ve{g}\KK = -\gradf(\vx\iter{0})$.
+								If $\norm{\ve{g}\KK} = 0$, then <b>STOP</b>.
+								<li>Compute factor $β\KK$ according to some formula and
+									$$
+									\vdK \leftarrow \ve{g}\KK + β\KK \vd\iter{k-1}.
+									$$
+									<li>
+										Perform (inexact) line-search to find
+										$\stepsizeK \approx \argmin_{\stepsize > 0} \ff(\vxK + \stepsize \vdK)$.
+									</li>
+									<li>
+										Update $\vx\iter{k+1} \leftarrow \vxK + \stepsizeK \vdK, k\leftarrow k+1$ and go to 1.
+									</li>
+								</ol>
+							</div>
+						</section>
+						<section>
+							<h2>Multi-Objective Nonlinear CG Algorithm</h2>
+							<ul>
+								<li class="fragment" data-fragment-index="1">
+									Can we apply our “recipe” to get a multi-objective algorithm?
+								</li>
+								<li class="fragment" data-fragment-index="2">
+									Yes!
+									<span style="color:gray;font-size:smaller">L. R. Lucambio Pérez and L. F. Prudente, “Nonlinear Conjugate Gradient Methods for Vector Optimization,” SIAM J. Optim., vol. 28, no. 3, pp. 2690–2720, Jan. 2018, doi: 10.1137/17M1126588.</span>
+								</li>
+								<li class="fragment" data-fragment-index="3">
+									<b>But:</b> step-size $\stepsize$ has to satisfy Wolfe conditions
+									$$
+									\begin{aligned}
+									\vf(\vx) - \vf(\vx + \stepsize \vd)&\geq \mathtt{c}_1 \stepsize\max\!_ℓ\langle \gradf_ℓ(\vx), \vd \rangle,
+									\\
+									\class{fragment highlight-red}{\data{fragment-index=5}{
+										\max\!_ℓ\langle \gradf_ℓ(\vx + \stepsize \vd), \vd \rangle
+									}}&\class{fragment highlight-red}{\data{fragment-index=5}{\geq}}
+									\class{fragment highlight-red}{\data{fragment-index=5}{
+										\mathtt{c}_2 \max\!_ℓ\langle \gradf_ℓ(\vx), \vd \rangle.
+									}}
+									\end{aligned}
+									$$
+								</li>
+								<li class="fragment" data-fragment-index="4">More complicated, repeated gradient evaluations, large step-sizes …</li>
+							</ul>
+						</section>
+						<section>
+							<h2>Modifications</h2>
+							<section>
+								<ul>
+									<li class="fragment">
+										$\vdK$ give the <b>sufficient decrease</b> if there is a constant $\sufDecConst > 0$
+										with
+										$$
+										- \funcXK(\vdK) \geq - \sufDecConst \funcXK(\sdK) \; {\color{gray}= \sufDecConst \norm{\sdK}^2} \quad ∀k
+										\tag{SD}
+										$$
+									</li>
+									<li class="fragment">
+										If (SD) holds independent from $\stepsizeK$, then $\vdK$ provide <b>guaranteed</b> descent.
+									</li>
+									<li class="fragment">
+										The <b>modified Armijo condition</b> for $\stepsize > 0$ reads
+										$$
+										\vf(\vx) - \vf(\vx + \stepsize \vd) \geq \mathtt{c}_1 \stepsize^2 \norm{\vd}^2.
+										\tag{AC}
+										$$
+									</li>
+								</ul>
+							</section>
+							<section>
+								<div style="display:block;height:40px"></div>
+								<div style="text-align:left;margin-left:10px;">
+								<p>Let $k\leftarrow 0$.
+									Given a starting point $\vx\iter{0}$, set
+									$\vd\iter{0} \leftarrow \sd(\vx\iter{0})$.
+									<br/>
+									If $\norm{\vd\iter{0}}\ne 0$, then go to 3.
+								</p>
+								<ol>
+									<li>Compute $\ve{g}\KK = \sd(\vxK)$.
+										If $\norm{\ve{g}\KK} = 0$, then <b>STOP</b>.
+										<li>Compute a direction $\ve{d}\KK$ with sufficient
+											decrease property (SD).
+											<li>
+												Perform backtracking to find
+												stepsize $\stepsizeK$ satisfying modified Armijo condition (AC).
+											</li>
+											<li>
+												Update $\vx\iter{k+1} \leftarrow \vxK + \stepsizeK \vdK, k\leftarrow k+1$ and go to 1.
+											</li>
+										</ol>
+							</div>
+							</section>
+							<section>
+								<div style="display:block;height:40px"></div>
+								<ul>
+									<li class="fragment">
+										Suppose (SD) and (AC) are fulfilled for all $k$.
+										Then a Zoutendijk condition holds:
+										$$\sum_{k\in ℕ_0} \frac{\norm{\sdK}^4}{\norm{\vdK}^2} < ∞.$$
+									</li>
+									<li class="fragment">
+										For suitable $\vdK$, this can be used to prove
+										$$
+										\liminf_{k\to ∞} \norm{\sdK} = 0.
+										$$
+									</li>
+								</ul>
+							</section>
+						</section>
+						<section>
+							<h1>Direction Recipes</h1>
+						</section>
+						<section>
+							<h2>Restarted Fletcher-Reeves Direction</h2>
+							<section style="text-align:left;padding-left:10px;">
+								Inspired by Zhang et. al [2], for $k\geq 1$, use
+								$$
+								\begin{aligned}
+								\vdK &= θ\KK \sdK + β\KK \vd\iter{k-1},
+								\\
+								θ\KK &= \frac{\funcXK(\vd\iter{k-1}) - \func_{\vx\iter{k-1}}(\vd\iter{k-1})}{\norm{\sd\iter{k-1}}^2},
+								\;
+								β\KK = \frac{\norm{\sdK}^2}{\norm{\sd\iter{k-1}}^2}.
+								\end{aligned}
+								$$
+								<span class="fragment highlight-red">
+									But only if $θ\KK \geq 0$. Else $\vdK=\sdK$ (reset).
+								</span>
+							</section>
+							<section style="text-align:left;padding-left:10px;">
+								Sufficient Decrease for $k \geq 1, θ\KK \geq 0$:
+								$$
+								\begin{aligned}
+								\langle \gradf_ℓ(\vxK), \vdK \rangle
+								&\fragment{1}{=
+									\langle \gradf_ℓ(\vxK), θ\KK \sdK + β\KK \vd\iter{k-1} \rangle%
+								}
+								\\
+								&\fragment{2}{=θ\KK \langle \gradf_ℓ(\vxK), \sdK \rangle + β\KK \langle  \gradf_ℓ(\vxK), \vd\iter{k-1}\rangle}
+								\\
+								&\fragment{3}{\leq
+									θ\KK \funcXK(\sdK) + β\KK \funcXK(\vd\iter{k-1})}
+									\\
+									&\fragment{4}{=
+										\funcXK(\sdK)
+										\specialFragment{5}{custom changeDisplayFadeOut}{\frac{\func_{\vx\iter{k-1}}(\vd\iter{k-1})}{\func_{\vx\iter{k-1}}(\sd\iter{k-1})}}
+										\specialFragment{5}{custom changeDisplayFadeIn}{
+											\underbrace{\frac{\func_{\vx\iter{k-1}}(\vd\iter{k-1})}{\func_{\vx\iter{k-1}}(\sd\iter{k-1})}}_{\leq 1\text{ by induction}}}
+										}
+										\end{aligned}
+										$$
+									</section>
+								</section>
+								<section>
+									<h2>Projected Polak-Ribière-Polyak</h2>
+									<section>
+										<div style="display:block;height:40px"></div>
+										<ul>
+											<li class="fragment">Cheng [3] uses the usual PRP coefficient $β\KK$, but projects onto $\gradf(\vxK)^\perp \subseteq \RRin$:
+												$$
+												\vdK = -\gradf(\vxK) + \operatorname{proj}\left(β\KK\vd\iter{k-1}; \gradf(\vxK)^\perp\right)
+												$$
+											</li>
+											<li class="fragment">
+												Cone of non-ascent directions: $\mathcal D = \left\{\vd \in \RRin: \jacf(\vx) \vd \le \ve{0}\right\}.$
+											</li>
+											<li class="fragment">
+												Let $β\KK = \frac{\funcXK(\sd\iter{k-1}-\sdK)}{\norm{\sd\iter{k-1}}^2}$ and use
+												$$\vdK = \sdK + \operatorname{proj}\left(β\KK\vd\iter{k-1}; \mathcal D\right).$$
+											</li>
+										</ul>
+									</section>
+									<section>
+										<div style="display:block;height:40px"></div>
+										<ul>
+											<li class="fragment">Alternative: Projection onto a single orthogonal space is easy.
+												$$
+												\small
+												\operatorname{proj}\left(β\KK\vd\iter{k-1}; \gradf(\vxK)^\perp\right)
+												=
+												\left(
+												\ve I - \frac{\gradf(\vxK)\gradf(\vxK)^T}{\norm{\gradf(\vxK)}^2}
+												\right) β\KK\vd\iter{k-1}
+												$$
+											</li>
+											<li class="fragment">
+												Let
+												$
+												\small\ve{v}_j = \operatorname{proj}\left(β\KK\vd\iter{k-1}; \gradf_j(\vxK)^\perp\right)
+												$
+												and
+												$$
+												\small
+												\bar{\ve{v}} = \argmin_{\ve{v} = \ve{v}_1, …, \ve{v}_\dimOut} \max_{ℓ=1,…,\dimOut} \langle \gradf_ℓ(\vxK), \ve{v} \rangle.
+												$$
+											</li>
+											<li class="fragment">
+												If $\small\funcXK(\bar{\ve{v}}) \leq 0$, take $\small\vdK = \sdK + \bar{\ve{v}}$; and $\small\vdK = \sdK$ otherwise.
+											</li>
+										</ul>
+									</section>
+								</section>
+								<section>
+									<h2>3-Term PRP</h2>
+									<ul>
+										<li>(Inspired by memoryless L-BFGS [4])</li>
+										<li>
+											$$
+											\small
+											\begin{aligned}[t]
+											β\KK(j) &= \frac{
+												\langle\gradf_j(\vxK),
+												\sd\iter{k-1} - \sdK
+												\rangle
+											}{\norm{\sd\iter{k-1}}^2},
+											\\
+											θ\KK(j) &= 
+											\frac{
+												\langle \gradf_j(\vxK),
+												\vd\iter{k-1}
+												\rangle
+											}{
+												\norm{\sd\iter{k-1}}^2
+											}
+											\end{aligned}
+											$$
+										</li>
+										<li>
+											Choose $j$ by solving
+											$$
+											\small
+											\max_{ℓ=1,…,\dimOut}
+											\min_{j=1,…,\dimOut}
+											\left\langle
+											\gradf_ℓ(\vxK),
+											\sdK + 
+											\beta\KK(j)
+											\vd\iter{k-1}
+											-
+											\theta\KK(j)
+											(\sd\iter{k-1} - \sdK)
+											\right\rangle.
+											$$
+										</li>
+								</section>
+								<section>
+									<h1>Experiments</h1>
+								</section>
+								<section>
+									<h2>Two Rosenbrock Functions.</h2>
+									<ul>
+										<li>
+										$$
+										\small
+										\min_{\vx} 
+										\begin{bmatrix}
+											100( x_2 - x_1^2 )^2 + (1 - x_1)^2
+											\\
+											100( x_2 - x_1^2 )^2 + (2 - x_1)^2
+										\end{bmatrix}
+										$$
+										</li>
+										<li>
+											Pareto-Set: Parabolic segment $x_2 = x_1^2, \; x_1 \in [1, 2]$.
+										</li>
+									</ul>
+									<img height="300px" src="./assets/bi_rosenbrock.png" />
+								</section>
+								<section>
+									<h2>Final Slide</h2>
+									<ul>
+										<li class="fragment">
+											We have theoretic convergence results for several CG schemes.
+										</li>
+										<li class="fragment">
+											In some experiments, these directions perform better than steepest descent,
+											without much additional cost.
+										</li>
+										<li class="fragment">
+											Everything (LaTeX, Code, Slides) is available online:<br/>
+											<a href="https://github.com/manuelbb-upb/MultiobjectiveNonlinearCG">
+												https://github.com/manuelbb-upb/MultiobjectiveNonlinearCG
+											</a>
+										</li>
+										<li class="fragment"><b>ToDo:</b>
+											<ul>
+												<li>More directions.</li>
+												<li>More (thorough) experiments.</li>
+												<li>Performance in stochastic setting.</li>
+												<li>Applications in Trust-Region Methods.</li>
+											</ul>
+										</li>
+									</ul>
+								</section>
+								<section>
+									<h2>References</h2>
+									<ul style="font-size:smaller;">
+										<li>
+											[1] L. R. Lucambio Pérez and L. F. Prudente, “Nonlinear Conjugate Gradient Methods for Vector Optimization,” SIAM J. Optim., vol. 28, no. 3, pp. 2690–2720, Jan. 2018, doi: 10.1137/17M1126588.
+											<li>
+												[2] L. Zhang, W. Zhou, and D. Li, “Global convergence of a modified Fletcher–Reeves conjugate gradient method with Armijo-type line search,” Numer. Math., vol. 104, no. 4, pp. 561–572, Sep. 2006, doi: 10.1007/s00211-006-0028-z.
+											</li>
+											<li>
+												[3] W. Cheng, “A Two-Term PRP-Based Descent Method,” Numerical Functional Analysis and Optimization, vol. 28, no. 11–12, pp. 1217–1230, Dec. 2007, doi: 10.1080/01630560701749524.
+											</li>
+											<li>
+												[4] L. Zhang, W. Zhou, and D.-H. Li, “A descent modified Polak–Ribière–Polyak conjugate gradient method and its global convergence,” IMA Journal of Numerical Analysis, vol. 26, no. 4, pp. 629–640, Oct. 2006, doi: 10.1093/imanum/drl016.
+											</li>
+										</ul>
+									</section>
+								</div>
+							</div>
+							
+							<script src="dist/reveal.js"></script>
+							<script src="plugin/notes/notes.js"></script>
+							<script src="plugin/markdown/markdown.js"></script>
+							<script src="plugin/highlight/highlight.js"></script>
+							<script src="plugin/math/math.js"></script>
+							<script>
+								// More info about initialization & config:
+								// - https://revealjs.com/initialization/
+								// - https://revealjs.com/config/
+								Reveal.initialize({
+									hash: true,
+									// respondToHashChanges: false,
+									width: 1280,
+									height: 720,
+									slideNumber: true,
+									sortFragmentsOnSync: false,
+									// Learn about plugins: https://revealjs.com/plugins/
+									plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath.MathJax3 ],
+									mathjax3: {
+										mathjax: "https://cdn.jsdelivr.net/npm/mathjax@4.0.0-alpha.1/es5/tex-mml-chtml.js",
+										/*startup : {
+											pageReady: () => {
+												return MathJax.startup.defaultPageReady().then(() => {
+													console.log('MathJax initial typesetting complete');
+													Reveal.sync();
+												});
+											}
+										},*/
+										loader: {load: ['[tex]/html']},
+										tex: {
+											packages: {'[+]': ['html']},
+											macros : {
+												dimIn: "N",
+												dimOut: "K",
+												RRin: "{\\mathbb{R}^\\dimIn}",
+												RRout: "{\\mathbb{R}^\\dimOut}",
+												ve: ["{\\symbf{#1}}", 1],
+												iter: ["^{(#1)}", 1],
+												KK: "\\iter{k}",
+												grad: "\\ve{\\nabla}\\!",
+												stepsize: "\\sigma",
+												stepsizeK: "\\stepsize\\KK",
+												ff: "f",
+												vf: "\\ve{\\ff}",
+												gradf: "\\grad\\ff",
+												jacf: "\\grad\\vf",
+												vx: "\\ve{x}",
+												vd: "\\ve{d}",
+												vxK: "\\vx\\KK",
+												vdK: "\\vd\\KK",
+												sd: "\\ve{δ}",
+												sdK: "\\sd\\KK",
+												argmin: "\\mathop{\\mathrm{arg\\,min}}",
+												norm: ["\\left\\Vert{#1}\\right\\Vert", 1],
+												func: "\\mathfrak{\\ff}",
+												funcX: "\\func_{\\vx}",
+												funcXK: "\\func_{\\vxK}",
+												sufDecConst: "κ_{\\mathrm{sd}}",
+												fragment: ["\\class{fragment}{\\data{fragment-index=#1}{#2}}", 2],
+												specialFragment: ["\\class{fragment #2}{\\data{fragment-index=#1}{#3}}", 3]
+											}
+										},
+									}
+								});
+							</script>
+							
+						</body>
+						</html>
+						

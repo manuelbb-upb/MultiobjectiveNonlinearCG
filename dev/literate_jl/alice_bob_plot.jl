@@ -7,8 +7,8 @@ Pkg.activate(@__DIR__) #src
 include(joinpath(@__DIR__, "makie_theme.jl")) #hide
 nothing #hide
 
-SAVEFIGS=false #src
-SAVEPATH=joinpath(ENV["HOME"],"Documents/Conferences/GAMM2023/slides/assets/") #src
+SAVEFIGS=true #src
+SAVEPATH=joinpath(@__DIR__, "..", "slides", "assets") #src
 
 #=
 # Pareto-Optimality
@@ -102,8 +102,9 @@ function setup_fig()
 end
 
 ## show the basic image:
-first(setup_fig())
-SAVEFIGS && save(joinpath(SAVEPATH, "alice_bob_plot0.png"), fig) #src
+fig0 = first(setup_fig())
+fig0
+SAVEFIGS && save(joinpath(SAVEPATH, "alice_bob_plot0.png"), fig0) #src
 
 #=
 To compare various meeting positions, we build a function
