@@ -132,7 +132,7 @@ let
   scatterlines!(ax, Tuple.(cache1.x_arr);
     label="sd ($(meta1.num_iter))", color=DOC_COLORS[:sd], linestyle=DOC_LSTYLES[:sd])
   scatterlines!(ax, Tuple.(cache2.x_arr);
-    label="prp ($(meta2.num_iter))", color=DOC_COLORS[:prpMinMax], linstyle=DOC_LSTYLES[:prpMinMax])
+    label="prp ($(meta2.num_iter))", color=DOC_COLORS[:prp3], linstyle=DOC_LSTYLES[:prp3])
 
   axislegend(ax)
 
