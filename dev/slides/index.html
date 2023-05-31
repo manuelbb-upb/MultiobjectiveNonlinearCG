@@ -14,6 +14,13 @@
 		<link rel="stylesheet" href="plugin/highlight/monokai.css">
 
 		<style type="text/css">
+		.reveal small {
+    		display: inline-block;
+    		font-size: 0.6em;
+    		line-height: 1.2em;
+    		vertical-align: baseline;
+		}
+		
 		.reveal .slides>section {
 		height:100%;
 		border: 1px solid black;
@@ -27,31 +34,35 @@
 			vertical-align: baseline !important;
 		}
 
-		.fragment.changeDisplayFadeOut{
+		.fragment.changeDisplayFadeOut {
 			display:inline;
 		}
 
-		.fragment.changeDisplayFadeOut.visible{
+		.fragment.changeDisplayFadeOut.visible {
 			display:none;
 		}
 
-		.fragment.changeDisplayFadeIn{
+		.fragment.changeDisplayFadeIn {
 			display:none;
 		}
 
-		.fragment.changeDisplayFadeIn.visible{
+		.fragment.changeDisplayFadeIn.visible {
 			display:inline;
 		}
 
 		</style>
 	</head>
 	<body>
-		<div class="reveal">
+		<div class="reveal"
+		style="background-image:url('./assets/upblogo.png');background-position:10px 10px;background-repeat:no-repeat;background-size:100px auto;"
+			>
 			<div class="slides">
 				<section>
 				<span class="absolute" style="top:0"><h3>
 					 Nonlinear Conjugate Gradient Directions with Guaranteed Descent for Smooth Multi-Objective Optimization
 				</h3></span>
+				<img src="./assets/titleimage.png" alt="Titleimage (PRP Projection Scheme)" 
+					style="position:absolute;top:150px;left:290px;width:700px;"/>
 				<div style="position:absolute;bottom:10px;left:10px;text-align:left">
 				<small>
 				Manuel Berkemeier <span class="ttext">manuelbb@mail.uni-paderborn.de</span>
@@ -60,6 +71,7 @@
 				</small>
 				</div>
 				<div style="position:absolute;bottom:10px;right:10px;">
+				GAMM23, Dresden<br/>
 				<small>Paderborn University</small>
 				</div>
 				</section>
