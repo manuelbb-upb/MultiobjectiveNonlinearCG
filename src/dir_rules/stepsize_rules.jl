@@ -81,7 +81,7 @@ function initial_stepsize(sc::StandardArmijoCache, d, x, DfxT, jacT!)
     c2 = maximum(d'DfxTε)
 
     if c2 > 0 && c1 <= 0
-        return @show(-c1/c2)
+        return (-c1/c2)
     else
         return sc.σ_init.σ_fallback
     end

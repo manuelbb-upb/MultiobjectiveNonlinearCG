@@ -69,7 +69,7 @@ function criticality(descent_cache::PRPGPCache)
 end
 
 function step!(dc::PRPGPCache, d, x, fx, DfxT, objf!, jacT!, meta)
-    ω = dc.sd_norm_squared[]
+    @show ω = dc.sd_norm_squared[]
     iszero(ω) && return nothing # ω is a denominator, so better do nothing before deviding by 0...
     
     # make `d` correspond to steepest descent direction δ and 
@@ -90,6 +90,7 @@ function step!(dc::PRPGPCache, d, x, fx, DfxT, objf!, jacT!, meta)
     φ = maximum(d_'DfxT)
     if φ <= 0
         # do nothing, _d is already a non-ascent direction
+        y .= d
         d .+= d_
     else
         K = meta.dim_out
@@ -98,6 +99,7 @@ function step!(dc::PRPGPCache, d, x, fx, DfxT, objf!, jacT!, meta)
         for j=1:K
             gj = DfxT[:, j]
             LA.mul!(P, gj, gj')
+            P ./= sum(gj .^ 2)
             dj .= d_
             dj .-= P*dj
             max_val_ℓ = typemin(T)
@@ -115,6 +117,7 @@ function step!(dc::PRPGPCache, d, x, fx, DfxT, objf!, jacT!, meta)
         end
     
         if min_val_j <= 0
+            y .= d
             d .+= d_tmp
         end
     end

@@ -111,8 +111,8 @@ function step!(dc::PRPCache, d, x, fx, DfxT, objf!, jacT!, meta)
         end
     end
     display(Φ)
-    @show maximum(minimum(Φ, dims=2))
-    @show minimum(maximum(Φ, dims=1))
+     maximum(minimum(Φ, dims=2))
+     minimum(maximum(Φ, dims=1))
     =#
     φmax = typemin(T)
     for j=1:K
