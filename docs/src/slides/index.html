@@ -88,7 +88,7 @@
 			<h2>Preliminaries</h2>
 			<ul>
 				<li class="fragment"><b>Target audience:</b>
-					Everyone interested in nonlinear (multi-)objective 
+					Everyone interested in nonlinear (multi-objective)
 					optimization. (Little prior knowledge required.)
 				</li>
 				<li class="fragment">
@@ -105,8 +105,9 @@
 		<section>
 			<h2>Multi-Objective Optimization</h2>
 			<ul>
-				<li class="fragment" data-fragment-index="0">
-					Minimize <b>multiple</b> conflicting objective functions
+				<li class="fragment">
+					Minimize <b>multiple</b> conflicting objective functions.
+					<span class="fragment">Find trade-offs.</span>
 				</li>
 				<li class="fragment">
 					<b>Example:</b> Alice &#128105; and Bob &#128104; want to meet.
@@ -149,11 +150,11 @@
 					<span class="fragment" data-fragment-index="2">
 						\[
 						\min_{\vx \in \RRin} \begin{bmatrix}
-						\ff_1
+						\ff_1(\vx)
 						\\
 						\vdots
 						\\
-						\ff_\dimOut
+						\ff_\dimOut(\vx)
 						\end{bmatrix}
 						\data{fragment-index=3}{\class{fragment}{=\min_{\vx \in \RRin} \vf(\vx)}}
 						\]
@@ -269,7 +270,7 @@
 							If $\norm{\vd\iter{0}}\ne 0$, then go to 3.
 						</p>
 						<ol>
-							<li>Compute $\ve{g}\KK = -\gradf(\vx\iter{0})$.
+							<li>Compute $\ve{g}\KK = -\gradf(\vxK)$.
 								If $\norm{\ve{g}\KK} = 0$, then <b>STOP</b>.
 								<li>Compute factor $β\KK$ according to some formula and
 									$$
@@ -552,6 +553,7 @@
 											<img  width="920px" class="fragment fade-in-then-out" src="./assets/rosenbrock_trajectory_SDm .png" />
 											<img  width="920px" class="fragment fade-in-then-out" src="./assets/rosenbrock_trajectory_PRP3.png" />
 											<img  width="920px" class="fragment fade-in-then-out" src="./assets/rosenbrock_trajectory_PRP2.png" />
+											<img  width="920px" class="fragment fade-in-then-out" src="./assets/rosenbrock_trajectory_FR.png" />
 											<img  width="920px" class="fragment fade-in-then-out" src="./assets/rosenbrock_trajectory_SDsz .png" />
 											<img  width="920px" class="fragment fade-in-then-out" src="./assets/rosenbrock_trajectory_PRP3sz .png" />
 											<img  width="550px" class="fragment fade-in-then-out" src="./assets/rosenbrock_crit_trajectory_SD.png" />
