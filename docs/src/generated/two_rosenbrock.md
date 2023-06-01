@@ -76,7 +76,7 @@ cache_so = M.GatheringCallbackCache(Float64)
 callbacks_so = [M.GatheringCallback(cache_so),]
 
 descent_rule_so = M.SteepestDescentRule(M.StandardArmijoRule())
-_ = M.optimize([-1.8, 1.3], objf_so, jacT_so;
+_ = M.optimize([-1.8, 0.0], objf_so, jacT_so;
     descent_rule=descent_rule_so, max_iter=100, callbacks=callbacks_so)
 ````
 
@@ -87,7 +87,7 @@ Let's proceed to plotting:
 let
     set_theme!(DOC_THEME2) #hide
     # evaluation range
-    X1 = LinRange(-2.2, 2.2, 100)
+    X1 = LinRange(-2, 2, 100)
     X2 = X1
     # define function for ``a=1, b=100``
     F = (x1, x2) -> f(x1, x2, 1, 100)
@@ -118,6 +118,10 @@ let
 
     # plot iterates
     x_it = Tuple.(cache_so.x_arr)
+    xlims!(ax1, (-2,2))
+    ylims!(ax1, (-2,2))
+    xlims!(ax2, (-2,2))
+    ylims!(ax2, (-2,2))
     scatterlines!(ax1, x_it; markersize=15f0,color=DOC_COLORS[:sd])
     scatterlines!(ax2, x_it; markersize=15f0,color=DOC_COLORS[:sd])
 
@@ -275,22 +279,39 @@ function do_experiment(x0; descent_rule, max_iter=100)
 end
 ````
 
-Compare Steepest Descent and a PRP variant:
+Compare Steepest Descent and some CG directions.
+To make repeated tasks easier, I set up a list of experiments to do:
 
 ````@example two_rosenbrock
-c_sd = do_experiment(x0; descent_rule=M.SteepestDescentRule(M.StandardArmijoRule()))
-c_prp = do_experiment(x0; descent_rule=M.PRP(M.ModifiedArmijoRule(), :sd))
+experiment_settings = [
+    ("SD", M.SteepestDescentRule(M.StandardArmijoRule()), :sd,),
+    ("SDm ", M.SteepestDescentRule(M.ModifiedArmijoRule()), :sdM,),
+    ("PRP3", M.PRP(M.ModifiedArmijoRule(), :sd), :prp3,),
+    ("PRP2", M.PRPGradProjection(M.ModifiedArmijoRule(), :sd), :prpOrth,),
+    ("FR", M.FRRestart(M.ModifiedArmijoRule(), :sd), :frRestart,),
+];
+nothing #hide
 ````
 
-Stacking iteration sites into matrices makes calculation
-of axis bounds easier:
+In single-objective optimization, some people try to improve the convergence
+speed by minimizing a quadratic model along the CG direction.
 
 ````@example two_rosenbrock
-X_sd = reduce(hcat, c_sd.x_arr)
-X_prp = reduce(hcat, c_prp.x_arr)
+push!(experiment_settings,  ("SDsz ", M.SteepestDescentRule(M.StandardArmijoRule(;σ_init=M.QuadApprox())), :sdSZ,))
+push!(experiment_settings,  ("PRP3sz ", M.PRP(M.ModifiedArmijoRule(;σ_init=M.QuadApprox()), :sd), :prp3SZ,))
+
+experiment_results = []
+for (_, descent_rule, _) in experiment_settings
+    cache = do_experiment(x0; descent_rule)
+    # Stacking iteration sites into matrices makes calculation
+    # of axis bounds easier:
+    X = reduce(hcat, cache.x_arr)
+    push!(experiment_results, X)
+end
 ````
 
-I use a helper for this
+After the experiments have run, I need a helper function
+to determine the plotting limits:
 
 ````@example two_rosenbrock
 function get_lims(Xs...; margin=0.1)
@@ -319,10 +340,11 @@ function get_lims(Xs...; margin=0.1)
 end
 ````
 
-Finally, the plotting is done much the same as before:
+Finally, the plotting is done much the same as before.
+First, plot all trajectories into a decision space plot:
 
 ````@example two_rosenbrock
-(x1_min, x1_max), (x2_min, x2_max) = get_lims(X_sd, X_prp)
+(x1_min, x1_max), (x2_min, x2_max) = get_lims(experiment_results...)
 let
     set_theme!(DOC_THEME2) #hide
     # evaluation range
@@ -336,7 +358,7 @@ let
     linkaxes!(ax1, ax2)
 
     # set global title
-    Label(fig[1, 1:4], "2 Rosenbrock Functions."; fontsize=60f0)
+    Label(fig[1, 1:4], L"2 Rosenbrock Functions ($a_1=1, a_2=2$)."; fontsize=60f0)
 
     # plot filled contours in left axis
     c = contourf!(ax1, X1, X2, f1)
@@ -360,21 +382,91 @@ let
     # make colorbars have nice size
     rowsize!(fig.layout, 2, Aspect(2,1))
 
-    scatterlines!(ax1, X_prp;
-        markersize=10f0, label="prp", color=DOC_COLORS[:prpMinMax], linestyle=DOC_LSTYLES[:prpMinMax])
-    scatterlines!(ax1, X_sd;
-        markersize=10f0, label="sd", color=DOC_COLORS[:sd], linestyle=DOC_LSTYLES[:sd])
-    scatterlines!(ax2, X_prp;
-        markersize=10f0, label="prp", color=DOC_COLORS[:prpMinMax], linestyle=DOC_LSTYLES[:prpMinMax])
-    scatterlines!(ax2, X_sd;
-        markersize=10f0, label="sd", color=DOC_COLORS[:sd], linestyle=DOC_LSTYLES[:sd])
-
+    # trajectories of optimization
+    for (ci, settings) = enumerate(experiment_settings[1:5])
+        label, _, prop_key = settings
+        X = experiment_results[ci]
+        label *= "($(size(X,2)))"
+        scatterlines!(ax1, X;
+            markersize=10f0, label, color=DOC_COLORS[prop_key], linestyle=DOC_LSTYLES[prop_key])
+        scatterlines!(ax2, X;
+            markersize=10f0, label, color=DOC_COLORS[prop_key], linestyle=DOC_LSTYLES[prop_key])
+    end
     # activate legend
     axislegend(ax1; position=:lb)
 
     # display plot
     fig
 end
+````
+
+The plot looks a bit cluttered, so do individual plots, too
+
+````@example two_rosenbrock
+function experiment_single_plot(ind)
+    global x1_min, x1_max, x2_min, x2_max
+    global experiment_settings, experiment_results
+
+    set_theme!(DOC_THEME2) #hide
+    # evaluation range
+    X1 = LinRange(x1_min, x1_max, 100)
+    X2 = LinRange(x2_min, x2_max, 100)
+    # initialize figure
+    fig = Figure(;)
+    ax1 = Axis(fig[2,2]; aspect=1, title=L"f_1(x_1, x_2)", ylabelvisible=false)
+    ax2 = Axis(fig[2,3], aspect=1, title=L"f_2(x_1, x_2)")
+
+    linkaxes!(ax1, ax2)
+
+    # set global title
+    Label(fig[1, 1:4], L"2 Rosenbrock Functions ($a_1=1, a_2=2$)."; fontsize=60f0)
+
+    # plot filled contours in left axis
+    c = contourf!(ax1, X1, X2, f1)
+    # and also give it a colorbar
+    Colorbar(fig[2,1], c;
+        flipaxis=false,
+        tickformat=nums->[@sprintf("%.1fK",n/1000) for n in nums]
+    )
+
+    # plot log contours in right axis
+    c = contourf!(ax2, X1, X2, f2)
+    Colorbar(fig[2,4], c;
+            tickformat=nums->[@sprintf("%.1fK",n/1000) for n in nums]
+    )
+
+    # plot Pareto set into both axes
+    A = LinRange(a1, a2, 100)
+    lines!(ax1, A, A.^2; color=DOC_COLORS[:PS], label="PS")
+    lines!(ax2, A, A.^2; color=DOC_COLORS[:PS], label="PS")
+
+    # make colorbars have nice size
+    rowsize!(fig.layout, 2, Aspect(2,1))
+
+    # trajectories of optimization
+    for ci in ind
+        label, _, prop_key = experiment_settings[ci]
+        X = experiment_results[ci]
+        label *= "($(size(X,2)))"
+        scatterlines!(ax1, X;
+            markersize=10f0, label, color=DOC_COLORS[prop_key], linestyle=DOC_LSTYLES[prop_key])
+        scatterlines!(ax2, X;
+            markersize=10f0, label, color=DOC_COLORS[prop_key], linestyle=DOC_LSTYLES[prop_key])
+    end
+    # activate legend
+    axislegend(ax1; position=:lb)
+
+    # display plot
+    fig
+end
+
+experiment_single_plot([1,])
+experiment_single_plot([2,])
+experiment_single_plot([3,])
+experiment_single_plot([4,])
+experiment_single_plot([5,])
+experiment_single_plot([6,])
+experiment_single_plot([7,])
 ````
 
 ### Criticality Plot
@@ -393,7 +485,10 @@ end
 The plot reveals a near critical parabola:
 
 ````@example two_rosenbrock
-let
+function experiment_crit_plot(ind)
+    global x1_min, x1_max, x2_min, x2_max
+    global experiment_settings, experiment_results
+
     set_theme!(DOC_THEME) #hide
     # evaluation range (more fine-grained here)
     X1 = LinRange(x1_min, x1_max, 200)
@@ -409,14 +504,27 @@ let
     A = LinRange(a1, a2, 100)
     lines!(ax, A, A.^2; color=DOC_COLORS[:PS], label="PS", linewidth=5f0)
 
-    scatterlines!(ax, X_prp;
-        markersize=10f0, label="prp", color=DOC_COLORS[:prpMinMax], linestyle=DOC_LSTYLES[:prpMinMax])
-    scatterlines!(ax, X_sd;
-        markersize=10f0, label="sd", color=DOC_COLORS[:sd], linestyle=DOC_LSTYLES[:sd])
+    # trajectories of optimization
+    for ci in ind
+        label, _, prop_key = experiment_settings[ci]
+        X = experiment_results[ci]
+        label *= "($(size(X,2)))"
+        # shadow for distinguishable lines
+        lines!(ax, X; color=:black, linewidth=8f0)
+        scatterlines!(ax, X;
+            markersize=18f0, label, color=DOC_COLORS[prop_key], linestyle=DOC_LSTYLES[prop_key],
+            strokecolor=:black, strokewidth=1f0
+        )
+    end
 
     axislegend(ax)
     fig
 end
+experiment_crit_plot([1,])
+experiment_crit_plot([2,])
+experiment_crit_plot([3,])
+experiment_crit_plot([4,])
+experiment_crit_plot([5,])
 ````
 
 ## Statistics
@@ -444,7 +552,7 @@ function do_runs(descent_rule; max_iter=20)
     X_it = Vector{Vector{Vector{Float64}}}()
     for x0 in X0
         cache = M.GatheringCallbackCache(Float64)
-        callbacks = [M.CriticalityStop(;eps_crit=0.0), M.GatheringCallback(cache)]
+        callbacks = [M.CriticalityStop(;eps_crit=-Inf), M.GatheringCallback(cache)]
         _ = M.optimize(x0, objf, jacT; descent_rule, max_iter, callbacks)
 
         x_arr = copy(cache.x_arr)
@@ -456,6 +564,15 @@ function do_runs(descent_rule; max_iter=20)
     end
     return X_it
 end
+````
+
+Perform all the experiments with previous settings:
+
+````@example two_rosenbrock
+experiment_results2 = [
+    do_runs(descent_rule) for (_, descent_rule, _) in experiment_settings
+];
+nothing #hide
 ````
 
 For every run, we want to compute the criticality ``\|\symbf{δ}\|`` at each point:
@@ -483,32 +600,39 @@ function consume_results(X_it)
 end
 ````
 
-Define the experiments by name and rule:
-
-````@example two_rosenbrock
-names_rules = (
-    sd = M.SteepestDescentRule(M.StandardArmijoRule()),
-    prpMinMax = M.PRP(M.ModifiedArmijoRule(), :sd)
-)
-````
-
 Run and plot:
 
 ````@example two_rosenbrock
-let
+function compare_crit_plot(ind)
+    global experiment_settings, experiment_results2
+
     fig = Figure()
-    ax = Axis(fig[1,1]; yscale=log10, xlabel="it", ylabel="crit")
-    for (name, rule) = pairs(names_rules)
-        X_it = do_runs(rule; max_iter)
+    ax = Axis(fig[1,1];
+        yscale=log10, xlabel=L"k",
+        ylabel=L"\Vert\delta(x^{(k)})\Vert/\Vert\delta_0\Vert",
+        title="2 Rosenbrocks, $(num_runs) runs in [-50, 50]².",
+        yminorticksvisible=true, yticks=LogTicks([0, -1, -2, -3, -4, -5, -6, -7]),
+        yminorticks=IntervalsBetween(10),
+        limits = (nothing, (5e-8, 1.2))
+    )
+    for ci in ind
+        X_it = experiment_results2[ci]
+        label, _, prop_key = experiment_settings[ci]
+
         μ, σ, q1, q2, q3 = consume_results(X_it)
         it = 0:length(μ)-1
-        lines!(ax, it, μ; label=string(name), color=DOC_COLORS[name])
-        lines!(ax, it, q2; color=DOC_COLORS[name], linestyle=:dash)
-        band!(ax, it, q1, q3; color=(DOC_COLORS[name], 0.2))
+        lines!(ax, it, μ; label = "μ " * label, color=DOC_COLORS[prop_key])
+        lines!(ax, it, q2; label = "median", color=DOC_COLORS[prop_key], linestyle=:dash)
+        band!(ax, it, q1, q3; label = "50 %", color=(DOC_COLORS[prop_key], 0.2))
     end
-    axislegend(ax)
+    axislegend(ax; patchsize=(40f0, 20f0))
+
     fig
 end
+
+compare_crit_plot([1,3])
+compare_crit_plot([1,4])
+compare_crit_plot([1,5])
 ````
 
 ---

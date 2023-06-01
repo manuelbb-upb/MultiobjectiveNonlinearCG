@@ -35,6 +35,11 @@ function make_literate()
         joinpath(@__DIR__, "src", "generated");
         documenter=true, preprocess=dir_preprocess,
     )
+    Literate.markdown(
+        joinpath(@__DIR__, "src" , "literate_jl", "konstantins_problems.jl"),
+        joinpath(@__DIR__, "src", "generated");
+        documenter=true, preprocess=dir_preprocess,
+    )
     #=Literate.markdown(
         joinpath(@__DIR__, "src" , "literate_jl", "multi_mnist.jl"),
         joinpath(@__DIR__, "src", "generated");
@@ -54,10 +59,13 @@ makedocs(
     modules = [MultiobjectiveNonlinearCG], 
     pages = [
         "Home" => "index.md",
+        "Examples" => [
+            "2 Parabolas" => "generated/two_parabolas.md",
+            "2 Rosenbrocks" => "generated/two_rosenbrock.md",
+            "Many Vars" => "generated/konstantins_problems.md",
+        ],
         "Pareto Optimality" => "generated/alice_bob_plot.md",
         "Frank-Wolfe Solver" => "generated/multidir_frank_wolfe.md",
-        "2 Parabolas" => "generated/two_parabolas.md",
-        "2 Rosenbrocks" => "generated/two_rosenbrock.md",
         #"MultiMNIST" => "generated/multi_mnist.md",
     ],
 )

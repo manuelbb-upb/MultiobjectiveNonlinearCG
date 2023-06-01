@@ -104,7 +104,8 @@ function setup_fig()
 end
 
 # show the basic image:
-first(setup_fig())
+fig0 = first(setup_fig())
+fig0
 ````
 
 To compare various meeting positions, we build a function
@@ -168,7 +169,7 @@ function scatterOpt!(axX, axY, X, Y, isopt; colors)
         marker, strokewidth, strokecolor = if isopt[i]
             (:circle, 0.5, :black)
         else
-            (:xcross, 1.5, :red)
+            (:xcross, 1.5, :orange)
         end
 
         scatter!(axX, (X[i]...); color, marker, strokewidth, strokecolor)
