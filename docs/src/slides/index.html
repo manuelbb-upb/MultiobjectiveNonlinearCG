@@ -240,7 +240,7 @@
 					<ul>
 						<li class="fragment">
 							Steepest Descent is slow & can get stuck in flat valleys.<br/>
-							<img style="margin-left:100px;" width="500px" src="./assets/so_rosenbrock.png" />
+							<img style="margin-left:200px;" width="500px" src="./assets/so_rosenbrock.png" />
 						</li>
 						<li class="fragment">
 							Linear Conjugate Gradient (CG) method is guaranteed to find the minimum of strictly convex quadratic
@@ -381,7 +381,7 @@
 								\begin{aligned}
 								\vdK &= θ\KK \sdK + β\KK \vd\iter{k-1},
 								\\
-								θ\KK &= \frac{\funcXK(\vd\iter{k-1}) - \func_{\vx\iter{k-1}}(\vd\iter{k-1})}{\norm{\sd\iter{k-1}}^2},
+								θ\KK &= \frac{\func_{\vx\iter{k-1}}(\vd\iter{k-1}) - \funcXK(\vd\iter{k-1})}{\norm{\sd\iter{k-1}}^2},
 								\;
 								β\KK = \frac{\norm{\sdK}^2}{\norm{\sd\iter{k-1}}^2}.
 								\end{aligned}
@@ -417,21 +417,23 @@
 								<section>
 									<h2>Projected Polak-Ribière-Polyak</h2>
 									<section>
-										<div style="display:block;height:40px"></div>
+										<div style="display:block;height:60px"></div>
 										<ul>
-											<li class="fragment">Cheng [3] uses the usual PRP coefficient $β\KK$, but projects onto $\gradf(\vxK)^\perp \subseteq \RRin$:
+											<li class="fragment" data-fragment-index="1">Cheng [3] uses the usual PRP coefficient $β\KK$, but projects onto $\gradf(\vxK)^\perp \subseteq \RRin$:
 												$$
 												\vdK = -\gradf(\vxK) + \operatorname{proj}\left(β\KK\vd\iter{k-1}; \gradf(\vxK)^\perp\right)
 												$$
 											</li>
-											<li class="fragment">
+											<li class="fragment" data-fragment-index="3">
 												Cone of non-ascent directions: $\mathcal D = \left\{\vd \in \RRin: \jacf(\vx) \vd \le \ve{0}\right\}.$
 											</li>
-											<li class="fragment">
+											<li class="fragment" data-fragment-index="4">
 												Let $β\KK = \frac{\funcXK(\sd\iter{k-1}-\sdK)}{\norm{\sd\iter{k-1}}^2}$ and use
 												$$\vdK = \sdK + \operatorname{proj}\left(β\KK\vd\iter{k-1}; \mathcal D\right).$$
 											</li>
 										</ul>
+										<img class="fragment fade-in-then-out" data-fragment-index="2" style="position:absolute;display:block;top:280px;left:280px;border:1px solid black" width="700px"
+											src="./assets/titleimage.png" />
 									</section>
 									<section>
 										<div style="display:block;height:40px"></div>
@@ -466,7 +468,7 @@
 								<section>
 									<h2>3-Term PRP</h2>
 									<ul>
-										<li>(Inspired by memoryless L-BFGS [4])</li>
+										<li>(Inspired by memoryless L-BFGS, Zhang et. al. [4])</li>
 										<li>
 											$$
 											\small
@@ -511,11 +513,13 @@
 								</section>
 								<section>
 									<h2>Two Rosenbrock Functions.</h2>
+									<section>
+									<div style="display:block;height:60px"></div>
 									<ul>
 										<li>
 										$$
 										\small
-										\min_{\vx} 
+										\min_{\vx \in ℝ^2} 
 										\begin{bmatrix}
 											100( x_2 - x_1^2 )^2 + (1 - x_1)^2
 											\\
@@ -528,6 +532,32 @@
 										</li>
 									</ul>
 									<img height="300px" src="./assets/bi_rosenbrock.png" />
+									</section>
+									<section>
+										<div style="display:block;height:50px"></div>
+										<pre style="text-align:center;box-shadow:none;width:920px"><code data-trim class="language-julia">
+										optimize(x0, objf, jacT; max_iter=100, crit_stop=7.45e-9, ...)
+										</code></pre>
+										<div class="r-stack">
+											<img  width="920px" class="fragment fade-in-then-out" src="./assets/rosenbrock_trajectories.png" />
+											<img  width="920px" class="fragment fade-in-then-out" src="./assets/rosenbrock_trajectory_SD.png" />
+											<img  width="920px" class="fragment fade-in-then-out" src="./assets/rosenbrock_trajectory_SDm .png" />
+											<img  width="920px" class="fragment fade-in-then-out" src="./assets/rosenbrock_trajectory_PRP3.png" />
+											<img  width="920px" class="fragment fade-in-then-out" src="./assets/rosenbrock_trajectory_PRP2.png" />
+											<img  width="550px" class="fragment fade-in-then-out" src="./assets/rosenbrock_crit_trajectory_SD.png" />
+											<img  width="550px" class="fragment fade-in-then-out" src="./assets/rosenbrock_crit_trajectory_PRP3.png" />
+											<img  width="550px" class="fragment fade-in" src="./assets/rosenbrock_crit_trajectory_FR.png" />
+										</div>
+									</section>
+									<section>
+										<div style="display:block;height:50px"></div>
+										<p>100 runs with different starting points</p>
+										<div class="r-stack">
+											<img width="550px" class="fragment" src="./assets/rosenbrock_statistics_SD_PRP3.png">
+											<img width="550px" class="fragment" src="./assets/rosenbrock_statistics_SD_PRP2.png">
+											<img width="550px" class="fragment" src="./assets/rosenbrock_statistics_SD_FR.png">
+										</div>
+									</section>
 								</section>
 								<section>
 									<h2>Final Slide</h2>

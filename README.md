@@ -13,3 +13,20 @@ The package is not (yet) registered, but you can install it from master via
 using Pkg
 Pkg.add(;url="https://github.com/manuelbb-upb/MultiobjectiveNonlinearCG.git")
 ```
+
+A draft PDF can be found in the `tex` folder, aptly named “template.pdf”.
+
+The Julia code is licensed under the MIT license.
+The slides use Reveal.js, which is also licensed under MIT.
+The contents of the slides, as well as the LaTeX code and the article draft PDF are licensed under CC BY 4.0.
+
+We hope to put something in the arXiv soon.
+In the meantime:
+```
+@misc{Berkemeier_Peitz, 
+    title={Nonlinear Conjugate Gradient Methods with Guaranteed Descent for Multi-Objective Optimzation},
+    author={Berkemeier, Manuel Bastian and Peitz, Sebastian},
+    year={2023},
+    howpublished = \url{https://github.com/manuelbb-upb/MultiobjectiveNonlinearCG},
+} 
+

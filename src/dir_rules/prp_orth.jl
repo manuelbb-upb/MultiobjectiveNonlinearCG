@@ -69,7 +69,7 @@ function criticality(descent_cache::PRPGPCache)
 end
 
 function step!(dc::PRPGPCache, d, x, fx, DfxT, objf!, jacT!, meta)
-    @show ω = dc.sd_norm_squared[]
+    ω = dc.sd_norm_squared[]
     iszero(ω) && return nothing # ω is a denominator, so better do nothing before deviding by 0...
     
     # make `d` correspond to steepest descent direction δ and 
