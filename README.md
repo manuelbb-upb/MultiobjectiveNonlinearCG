@@ -29,4 +29,4 @@ In the meantime:
     year={2023},
     howpublished = \url{https://github.com/manuelbb-upb/MultiobjectiveNonlinearCG},
 } 
-
+```
