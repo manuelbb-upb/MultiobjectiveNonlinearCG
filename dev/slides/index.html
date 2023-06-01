@@ -28,7 +28,7 @@
 		}*/
 		.reveal .slides>section {
 			height:100%;
-			border: 1px solid black;
+			/*border: 1px solid black;*/
 		}
 		.reveal .slide .absolute {
 			position: absolute;
@@ -59,15 +59,17 @@
 </head>
 <body>
 	<div class="reveal"
-	style="background-image:url('./assets/upblogo.png');background-position:10px 10px;background-repeat:no-repeat;background-size:100px auto;"
+	style="background-image:url('./assets/upblogo.png');background-position:10px 10px;background-repeat:no-repeat;background-size:auto 30px;"
 	>
 	<div class="slides">
 		<section>
-			<span class="absolute" style="top:0"><h3>
-				Nonlinear Conjugate Gradient Directions with Guaranteed Descent for Smooth Multi-Objective Optimization
-			</h3></span>
+			<!--<span class="absolute" style="top:0;width:80%">-->
+			<h3 style="position:absolute;top:30px">
+				Nonlinear Conjugate Gradient Directions with Guaranteed Descent<br/>
+				for Smooth Multi-Objective Optimization
+			</h3><!--</span>-->
 			<img src="./assets/titleimage.png" alt="Titleimage (PRP Projection Scheme)" 
-			style="position:absolute;top:150px;left:290px;width:700px;"/>
+			style="position:absolute;top:170px;left:290px;width:700px;"/>
 			<div style="position:absolute;bottom:20px;left:10px;text-align:left">
 				<small>
 					Manuel Berkemeier <span class="ttext">(manuelbb@mail.uni-paderborn.de)</span>
@@ -153,8 +155,7 @@
 						\\
 						\ff_\dimOut
 						\end{bmatrix}
-						=
-						\data{fragment-index=3}{\class{fragment}{\min_{\vx \in \RRin} \vf(\vx)}}
+						\data{fragment-index=3}{\class{fragment}{=\min_{\vx \in \RRin} \vf(\vx)}}
 						\]
 					</span>
 				</li>
@@ -233,7 +234,7 @@
 									Replace $\langle \gradf(\vx), \ve d \rangle$ with $\funcX(\vd) := \max_ℓ \langle \gradf_ℓ(\vx), \ve d \rangle$.
 								</li>
 								<li>
-									Replace $\norm{-\gradf(\vx)}^2$ with $\norm{\sd}^2 = - \funcX(\vd)$.
+									Replace $\norm{-\gradf(\vx)}^2$ with $\norm{\sd}^2 = - \funcX(\sd)$.
 								</li>
 							</ul>
 						</li>
@@ -424,7 +425,7 @@
 								<section>
 									<h2>Projected Polak-Ribière-Polyak</h2>
 									<section>
-										<div style="display:block;height:60px"></div>
+										<div style="display:block;height:70px"></div>
 										<ul>
 											<li class="fragment" data-fragment-index="1">Cheng [3] uses the usual PRP coefficient $β\KK$, but projects onto $\gradf(\vxK)^\perp \subseteq \RRin$:
 												$$
@@ -443,7 +444,7 @@
 											src="./assets/titleimage.png" />
 									</section>
 									<section>
-										<div style="display:block;height:40px"></div>
+										<div style="display:block;height:50px"></div>
 										<ul>
 											<li class="fragment">Alternative: Projection onto a single orthogonal space is easy.
 												$$
@@ -653,6 +654,7 @@
 								Reveal.initialize({
 									hash: true,
 									// respondToHashChanges: false,
+									navigationMode: "linear",
 									width: 1280,
 									height: 720,
 									slideNumber: true,
