@@ -1,6 +1,6 @@
 # This file is meant to be parsed by Literate.jl #src
 if !(joinpath(@__DIR__, "..", "..") in LOAD_PATH) #src
-    push!(LOAD_PATH, joinpath(@__DIR__, "..", "..")) #src
+    pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..", "..")) #src
 end #src
 using Pkg #src
 Pkg.activate(@__DIR__) #src

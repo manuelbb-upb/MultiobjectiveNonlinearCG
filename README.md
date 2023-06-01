@@ -7,6 +7,7 @@ but don't expect anything particularly usable or stable.
 
 As things are changing fast behind the scenes, please refer to the [docs](https://manuelbb-upb.github.io/MultiobjectiveNonlinearCG/)
 for usage hints.
+The slides are linked there, too.
 
 The package is not (yet) registered, but you can install it from master via
 ```julia

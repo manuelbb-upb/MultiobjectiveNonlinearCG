@@ -31,6 +31,13 @@ Base.@kwdef struct QuadApprox{E<:Real, M<:Real}
     σ_fallback :: M = MIN_PRECISION(1)
 end
 
+
+Base.@kwdef struct QuadApproxCache{E<:Real, M<:Real, D}
+    eps :: E = MIN_PRECISION(1e-3)
+    σ_fallback :: M = MIN_PRECISION(1)
+    σ_dat :: D
+end
+
 Base.@kwdef struct StandardArmijoRule{
     A<:Real, B<:Real, M<:Union{QuadApprox, Real}
 } <: AbstractStepsizeRule
@@ -43,34 +50,29 @@ function armijo_rhs(sc::AbstractStepsizeCache, dc::AbstractDirCache)
     error("`armijo_rhs` not defined for argument of type $(typeof(dc))")
 end
 
-struct StandardArmijoCache{A, B, M, X, Y, D} <: AbstractStepsizeCache
+struct StandardArmijoCache{A, B, M, X, Y} <: AbstractStepsizeCache
     a :: A
     b :: B
     σ_init :: M
     x :: X
     fx :: Y
-    σ_dat :: D
 end
+
+init_init_cache(σ0::Real, T, x, DfxT) = T(σ0)
+init_init_cache(σ0::QuadApprox, T, x, DfxT) = QuadApproxCache(σ0.eps, σ0.σ_fallback,(copy(x),copy(DfxT)))
+
 
 function init_stepsize_cache(sr::StandardArmijoRule, x, fx, DfxT, d, objf!, jacT!, meta)
     T = meta.precision
-    if sr.σ_init isa Real
-        σ_init = T(sr.σ_init)
-        σ_dat = nothing
-    else
-        σ_init = sr.σ_init
-        σ_dat = (copy(x), copy(DfxT))
-    end
+    σ_init = init_init_cache(sr.σ_init, T, x, DfxT) 
     
-    return StandardArmijoCache(T(sr.a), T(sr.b), σ_init, copy(x), copy(fx), σ_dat)
+    return StandardArmijoCache(T(sr.a), T(sr.b), σ_init, copy(x), copy(fx))
 end
 
-function initial_stepsize(sc::StandardArmijoCache, d, x, DfxT, jacT!)
-    if sc.σ_init isa Real
-        return sc.σ_init
-    end
-    xε, DfxTε = sc.σ_dat
-    ε = sc.σ_init.eps
+initial_stepsize(σ_init::Real, args...) = σ_init
+function initial_stepsize(σ_init::QuadApproxCache, d, x, DfxT, jacT!)
+    xε, DfxTε = σ_init.σ_dat
+    ε = σ_init.eps
     xε .= x
     xε .+= ε .* d
     jacT!(DfxTε, xε)
@@ -83,7 +85,7 @@ function initial_stepsize(sc::StandardArmijoCache, d, x, DfxT, jacT!)
     if c2 > 0 && c1 <= 0
         return (-c1/c2)
     else
-        return sc.σ_init.σ_fallback
+        return σ_init.σ_fallback
     end
 end
 
@@ -93,7 +95,7 @@ function apply_stepsize!(dir, sc::StandardArmijoCache, descent_cache, x, fx, Dfx
 
     Φx = maximum(fx)
     
-    σ = initial_stepsize(sc, dir, x, DfxT, jacT!)
+    σ = initial_stepsize(sc.σ_init, dir, x, DfxT, jacT!)
     dir .*= σ
     
     x_ .= x .+ dir
@@ -115,7 +117,7 @@ function apply_stepsize!(dir, sc::StandardArmijoCache, descent_cache, x, fx, Dfx
     return nothing
 end
 
-Base.@kwdef struct ModifiedArmijoRule{A<:Real, B<:Real, M<:Real} <: AbstractStepsizeRule
+Base.@kwdef struct ModifiedArmijoRule{A<:Real, B<:Real, M} <: AbstractStepsizeRule
     a :: A = MIN_PRECISION(1e-4)
     b :: B = MIN_PRECISION(0.5)
     σ_init :: M = MIN_PRECISION(1)
@@ -131,7 +133,8 @@ end
 
 function init_stepsize_cache(sr::ModifiedArmijoRule, x, fx, DfxT, d, objf!, jacT!, meta)
     T = meta.precision
-    return ModifiedArmijoCache(T(sr.a), T(sr.b), T(sr.σ_init), copy(x), copy(fx))
+    σ_init = init_init_cache(sr.σ_init, T, x, DfxT) 
+    return ModifiedArmijoCache(T(sr.a), T(sr.b), σ_init, copy(x), copy(fx))
 end
 
 function apply_stepsize!(dir, sc::ModifiedArmijoCache, descent_cache, x, fx, DfxT, objf!, jacT!, meta)
@@ -140,7 +143,7 @@ function apply_stepsize!(dir, sc::ModifiedArmijoCache, descent_cache, x, fx, Dfx
 
     Φx = maximum(fx)
     
-    σ = sc.σ_init
+    σ = initial_stepsize(sc.σ_init, dir, x, DfxT, jacT!)
     dir .*= σ
     
     x_ .= x .+ dir

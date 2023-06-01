@@ -1,6 +1,6 @@
 # This file is meant to be parsed by Literate.jl #src
 if !(joinpath(@__DIR__, "..", "..") in LOAD_PATH) #src
-    push!(LOAD_PATH, joinpath(@__DIR__, "..", "..")) #src
+    pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..", "..")) #src
 end #src
 using Pkg #src
 Pkg.activate(@__DIR__) #src
@@ -268,6 +268,11 @@ experiment_settings = [
     ("FR", M.FRRestart(M.ModifiedArmijoRule(), :sd), :frRestart,),
 ];
 
+# In single-objective optimization, some people try to improve the convergence 
+# speed by minimizing a quadratic model along the CG direction.
+push!(experiment_settings,  ("SDsz ", M.SteepestDescentRule(M.StandardArmijoRule(;σ_init=M.QuadApprox())), :sdSZ,))
+push!(experiment_settings,  ("PRP3sz ", M.PRP(M.ModifiedArmijoRule(;σ_init=M.QuadApprox()), :sd), :prp3SZ,))
+
 experiment_results = []
 for (_, descent_rule, _) in experiment_settings
     cache = do_experiment(x0; descent_rule)
@@ -320,7 +325,7 @@ let
     linkaxes!(ax1, ax2)
 
     ## set global title
-    Label(fig[1, 1:4], "2 Rosenbrock Functions."; fontsize=60f0)
+    Label(fig[1, 1:4], L"2 Rosenbrock Functions ($a_1=1, a_2=2$)."; fontsize=60f0)
 
     ## plot filled contours in left axis
     c = contourf!(ax1, X1, X2, f1)
@@ -345,7 +350,7 @@ let
     rowsize!(fig.layout, 2, Aspect(2,1))
 
     ## trajectories of optimization
-    for (ci, settings) = enumerate(experiment_settings)
+    for (ci, settings) = enumerate(experiment_settings[1:5])
         label, _, prop_key = settings
         X = experiment_results[ci]
         label *= "($(size(X,2)))"
@@ -425,6 +430,8 @@ experiment_single_plot([2,])
 experiment_single_plot([3,])
 experiment_single_plot([4,])
 experiment_single_plot([5,])
+experiment_single_plot([6,])
+experiment_single_plot([7,])
 
 #%% #src
 # ### Criticality Plot
@@ -480,6 +487,7 @@ experiment_crit_plot([2,])
 experiment_crit_plot([3,])
 experiment_crit_plot([4,])
 experiment_crit_plot([5,])
+
 # ## Statistics
 
 using Statistics
@@ -540,9 +548,11 @@ function compare_crit_plot(ind)
     
     fig = Figure()
     ax = Axis(fig[1,1]; 
-        yscale=log10, xlabel=L"k", ylabel=L"\Vert\delta(x^{(k)})\Vert/\Vert\delta_0\Vert", 
-        title="2 Rosenbrocks,$(num_runs) runs",
+        yscale=log10, xlabel=L"k", 
+        ylabel=L"\Vert\delta(x^{(k)})\Vert/\Vert\delta_0\Vert", 
+        title="2 Rosenbrocks, $(num_runs) runs in [-50, 50]².",
         yminorticksvisible=true, yticks=LogTicks([0, -1, -2, -3, -4, -5, -6, -7]),
+        yminorticks=IntervalsBetween(10),
         limits = (nothing, (5e-8, 1.2))
     )
     for ci in ind

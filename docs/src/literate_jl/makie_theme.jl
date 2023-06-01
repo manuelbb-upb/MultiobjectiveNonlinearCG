@@ -51,8 +51,10 @@ DOC_COLORS = Dict(
     :PF => WONG_COLORS[3],
     :min => WONG_COLORS[5],
     :sd => WONG_COLORS[6], 
+    :sdSZ => WONG_COLORS[6], 
     :sdM => WONG_COLORS[7], 
     :prp3 => WONG_COLORS[4],
+    :prp3SZ => WONG_COLORS[4],
     :prpOrth => WONG_COLORS[1], 
     :frRestart => WONG_COLORS[2],
 )
@@ -60,8 +62,10 @@ DOC_LSTYLES = Dict(
     :PS => :solid,
     :PF => :solid,
     :sd => :solid,
+    :sdSZ => :dash,
     :sdM => :solid,
     :prp3 => :solid,
+    :prp3SZ => :dash,
     :prpOrth => :solid,
     :frRestart => :solid,
 )
