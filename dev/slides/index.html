@@ -14,6 +14,12 @@
 	<link rel="stylesheet" href="plugin/highlight/monokai.css">
 	
 	<style type="text/css">
+		.colContainer{
+		display: flex;
+		}
+		.cCol{
+		flex: 1;
+		}
 		.reveal small {
 			display: inline-block;
 			font-size: 0.6em;
@@ -531,7 +537,7 @@
 											Pareto-Set: Parabolic segment $x_2 = x_1^2, \; x_1 \in [1, 2]$.
 										</li>
 									</ul>
-									<img height="300px" src="./assets/bi_rosenbrock.png" />
+									<img class="fragment" height="370px" src="./assets/bi_rosenbrock.png" />
 									</section>
 									<section>
 										<div style="display:block;height:50px"></div>
@@ -560,6 +566,27 @@
 											<img width="550px" class="fragment" src="./assets/rosenbrock_statistics_SD_FR.png">
 										</div>
 									</section>
+								</section>
+								<section>
+									<h2>More Variables</h2>
+									<div class="colContainer">
+									<div class="cCol">
+									<ul>
+										<li>For $\dimIn = 20$ and $p=50$, let 
+										$\ve{A}\iter{ℓ} \in ℝ^{p\times \dimIn}$ contain entries
+										uniformly sampled from $[-1, 1]$, $ℓ=1,…,\dimOut$.
+										</li>
+										<li>Define
+										$
+										f_ℓ(\vx) = \ln \sum_{j=1}^p \exp(\ve{A}\iter{ℓ}_{j, :}\cdot \vx)
+										$.
+										</li>
+									</ul>
+									</div>
+									<div class="cCol">
+									<img width="550px" class="fragment" src="./assets/log_exp_20VARS_3OBJF_50COEFF.png" />
+									</div>
+									</div>
 								</section>
 								<section>
 									<h2>Final Slide</h2>
