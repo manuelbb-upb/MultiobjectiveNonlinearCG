@@ -50,15 +50,24 @@ end
 
 make_literate()
 
+cp(
+    joinpath(@__DIR__, "..", "tex", "template.pdf"),
+    joinpath(@__DIR__, "src", "assets", "template.pdf");
+    force=true
+)
+
 makedocs(
     sitename = "MultiobjectiveNonlinearCG",
     format = Documenter.HTML(;
         mathengine=Documenter.MathJax3(),
-        assets = ["assets/custom.css"],
+        assets = [
+            "assets/custom.css"
+        ]
     ),
     modules = [MultiobjectiveNonlinearCG], 
     pages = [
         "Home" => "index.md",
+        "Theory" => "theory.md",
         "Examples" => [
             "2 Parabolas" => "generated/two_parabolas.md",
             "2 Rosenbrocks" => "generated/two_rosenbrock.md",
