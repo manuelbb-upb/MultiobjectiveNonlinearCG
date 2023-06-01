@@ -159,7 +159,7 @@ function scatterOpt!(axX, axY, X, Y, isopt; colors)
         marker, strokewidth, strokecolor = if isopt[i]
             (:circle, 0.5, :black)
         else
-            (:xcross, 1.5, :red)
+            (:xcross, 1.5, :orange)
         end
 
         scatter!(axX, (X[i]...); color, marker, strokewidth, strokecolor)

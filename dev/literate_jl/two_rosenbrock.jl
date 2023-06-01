@@ -463,8 +463,12 @@ function experiment_crit_plot(ind)
         label, _, prop_key = experiment_settings[ci]
         X = experiment_results[ci]
         label *= "($(size(X,2)))"
+        ## shadow for distinguishable lines
+        lines!(ax, X; color=:black, linewidth=8f0)
         scatterlines!(ax, X; 
-            markersize=10f0, label, color=DOC_COLORS[prop_key], linestyle=DOC_LSTYLES[prop_key])
+            markersize=18f0, label, color=DOC_COLORS[prop_key], linestyle=DOC_LSTYLES[prop_key],
+            strokecolor=:black, strokewidth=1f0
+        )
     end
 
     axislegend(ax)
@@ -493,7 +497,7 @@ function do_runs(descent_rule; max_iter=20)
     X_it = Vector{Vector{Vector{Float64}}}()
     for x0 in X0
         cache = M.GatheringCallbackCache(Float64)
-        callbacks = [M.CriticalityStop(;eps_crit=0.0), M.GatheringCallback(cache)]
+        callbacks = [M.CriticalityStop(;eps_crit=-Inf), M.GatheringCallback(cache)]
         _ = M.optimize(x0, objf, jacT; descent_rule, max_iter, callbacks)
         
         x_arr = copy(cache.x_arr)
@@ -536,8 +540,11 @@ function compare_crit_plot(ind)
     
     fig = Figure()
     ax = Axis(fig[1,1]; 
-        yscale=log10, xlabel="it", ylabel="crit", 
-        title=L"\Vert\delta(x^{(k)})\Vert/\Vert\delta_0\Vert - %$(num_runs) \text{ runs.}")
+        yscale=log10, xlabel=L"k", ylabel=L"\Vert\delta(x^{(k)})\Vert/\Vert\delta_0\Vert", 
+        title="2 Rosenbrocks,$(num_runs) runs",
+        yminorticksvisible=true, yticks=LogTicks([0, -1, -2, -3, -4, -5, -6, -7]),
+        limits = (nothing, (5e-8, 1.2))
+    )
     for ci in ind
         X_it = experiment_results2[ci]
         label, _, prop_key = experiment_settings[ci]
