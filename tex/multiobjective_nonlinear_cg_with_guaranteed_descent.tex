@@ -30,7 +30,7 @@
 \usepackage{tikz}
 \usetikzlibrary{calc, angles}
 
-\usepackage[inline]{showlabels}
+\usepackage[final]{showlabels}
 
 \usepackage{todonotes}
 \setuptodonotes{inline}
@@ -42,6 +42,7 @@
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
 \theoremstyle{definition}
 \newtheorem{definition}[theorem]{Definition}
 \newtheorem{assumption}{Assumption}
@@ -67,13 +68,20 @@
 	Paderborn University, Germany\\
 	\texttt{manuelbb@mail.uni-paderborn.de}
 	\And
+	\href{https://orcid.org/0000-0003-3384-3496}{%
+		\includegraphics[scale=0.06]{orcid.pdf}%
+		\hspace{1mm}Konstantin Sonntag.%
+	}\\
+	Department of Applied Mathematics\\
+	Paderborn University, Germany\\
+	\And
 	\href{https://orcid.org/0000-0002-3389-793X}{%
 		\includegraphics[scale=0.06]{orcid.pdf}%
 		\hspace{1mm}Manuel Berkemeier.%
 	}\\
 	Department of Computer Science\\
 	Paderborn University, Germany\\
-	\texttt{sebastian.peitz@upb.de}
+	%\texttt{sebastian.peitz@upb.de}
 }%
 
 % Uncomment to override  the `A preprint' in the header
@@ -139,47 +147,97 @@ We call such problems \ac{mop} and
 an \ac{mop}.
 In more precise terms, optimality of our vector-valued objective function 
 $\vf \colon \RRin \to \RRout$, with dimensions $\dimIn, \dimOut \in \NN$,
-is determined by the partial ordering $\leK$ induced by a closed, convex, pointed cone 
-$\Kone \subseteq \RRout, \interior(\Kone) \neq \emptyset$.
-The solutions to the unconstrained problem
-\begin{equation}
-	\minK_{\vx \in \RRin}
-	\begin{bmatrix}
-		\ff_1(\vx)
-		\\
-		\vdots
-		\\
-		\ff_\dimOut(\vx)
-	\end{bmatrix}
-	\;
-	=
-	\;
-	\minK_{\vx \in \RRin} \vf(\vx)
-	\tag{MOP}
-	\label{eqn:mop}
-\end{equation}
-are minimal with respect to $\leK$ and are called \emph{Pareto-optimal}.
-That is, a point $\vx\opt\in\RRin$ is optimal, if there is no $\vx \in \RRin$ with 
-$\vx \neq \vx\opt$ and 
-$\vf(\vx) \leK \vf(\vx\opt) \iff \vf(\vx\opt) - \vf(\vx) \in \interior(\Kone)$.
+is determined by the partial ordering $\leqK$ induced by a closed, convex, pointed cone 
+$\Kone \subseteq \RRout$ with $\interior(\Kone) \neq \emptyset$.
+We have $\ve y_1 \leqK \ve y_2$ iff $\ve y_2 - \ve y_1 \in \Kone$
+and
+$\ve y_1 \leK \ve y_2$ iff $\ve y_2 - \ve y_1 \in \interior(\Kone)$.
+\begin{definition}
+	The solutions to the unconstrained problem
+	\begin{equation}
+		\minK_{\vx \in \RRin}
+		\begin{bmatrix}
+			\ff_1(\vx)
+			\\
+			\vdots
+			\\
+			\ff_\dimOut(\vx)
+		\end{bmatrix}
+		\;
+		=
+		\;
+		\minK_{\vx \in \RRin} \vf(\vx)
+		\tag{MOP}
+		\label{eqn:mop}
+	\end{equation}
+	are minimal with respect to $\leK$ and are called \emph{Pareto-optimal}.
+	That is, a point $\vx\opt\in\RRin$ is optimal, 
+	if there is no $\RRin\setminus\{\vx\opt\}$ with 
+	$\vf(\vx) \leK \vf(\vx\opt)$.
+	% $$
+	% \vf(\vx) \leK \vf(\vx\opt) \iff \vf(\vx\opt) - \vf(\vx) \in \interior(\Kone)
+	% .
+	% $$
+\end{definition}
 In practical applications, one often encounters $\Kone = \RRout_{\ge 0}$.
-There is a multitude of methods to solve \acp{mop}.
-\todo{Elaborate and list these methods, add corresponding references.}
+Today, there is a multitude of methods to solve \acp{mop},
+and it would be out of the scope of this article to provide a complete 
+overview.
+To see how~\eqref{eqn:mop} can be transformed into a 
+single-objective problem
+via \emph{scalarization}, there are entire books on the subjects, 
+e.g.~\cite{ehrgottMulticriteriaOptimization2005}.
+To obtain multiple solutions, oftentimes so-called 
+\emph{evolutionary algorithms} are used, 
+NSGA-II~\cite{debFastElitistMultiobjective2002} being 
+a prominent example.
+If derivatives are available, local descent-based optimization 
+allows for finding individual critical 
+solutions~\cite{%
+mukaiAlgorithmsMulticriterionOptimization1980a,%
+fliegeSteepestDescentMethods2000,%
+fukudaSURVEYMULTIOBJECTIVEDESCENT2014%
+}, or continuing along the manifold of solutions towards more 
+favorable points~\cite{%
+hillermeierNonlinearMultiobjectiveOptimization2001,%
+martinParetoTracerPredictor2018%
+}.
+Preferences can also be encoded in scalarizations, see~\cite{%
+eichfelderAdaptiveScalarizationMethods2008,%
+miettinenNonlinearMultiobjectiveOptimization2013%
+}.
+For more complete overview, consider the surveys~\cite{peitzSurveyRecentTrends2018}
+and~\cite{eichfelderTwentyYearsContinuous}.
 
 \subsection*{Conjugate Gradient Methods}
+
+The main motivation for our work stems from recent improvements of the convergence rate
+of some first-order methods in \ac{moo}.
+Multi-objective steepest descent suffers from the same sublinear convergence rates 
+of its single-objective counterpart~\cite{fliegeComplexityGradientDescent2019}.
+For convex objectives, it can be shown that faster first-order methods 
+exist~\cite{%
+tanabeAcceleratedProximalGradient2023,%
+sonntagFastMultiobjectiveGradient2022%
+}. 
+In the non-convex case, nonlinear \ac{cg} algorithms have empirically proven themselves
+good alternatives.
+
+
 Originally, the \ac{cg} method is an iterative method used for the 
 numerical solution of particular systems of linear equations, 
 specifically those whose matrix is symmetric and positive-definite. 
 The method is best suited to large-scale problems where direct methods 
 are not feasible~\cite{nocedalNumericalOptimization2006}.
-The linear conjugate gradient method has motivated the use of similar 
-directions in iterative schemes for large-scale \emph{nonlinear} optimization
+The desirable convergence properties of the linear conjugate gradient method 
+has motivated the use of similar directions in iterative schemes for 
+large-scale \emph{nonlinear} optimization
 problems. 
 Similarly to the linear case, the descent direction is a linear combination 
 of the negative gradient and the previous direction, but the 
 multipliers are different.
-Today, there is a multitude of different nonlinear conjugate methods, which 
-tend to be faster than the steepest descent method~\cite{nocedalNumericalOptimization2006}.
+Today, there is a multitude of different nonlinear conjugate methods
+which tend to be faster than the steepest descent method~\cite{nocedalNumericalOptimization2006}.
 
 Recently,~\citet{lucambioperezNonlinearConjugateGradient2018} have adapted 
 many of the popular nonlinear \ac{cg} methods to the multi-objective setting.
@@ -200,32 +258,42 @@ of the objectives.
 In contrast, the directions in this work satisfy a \emph{sufficient decrease}
 condition by construction -- independent of the line-search.
 The directions are adapted (or “translated”) from the single-objective 
-setting, albeit there already is a scheme for bi-objective optimization~\cite{elboulqeExplicitThreeTermPolak}.
+setting, 
+albeit there already is a scheme for bi-objective optimization~\cite{elboulqeExplicitThreeTermPolak}.
 
 \section{Criticality}
 Given smooth objective functions, there is necessary condition for Pareto-optimality
 in~\eqref{eqn:mop} similar to Fermat's theorem in single objective optimization.
 Let $\jacf(\vx) \in \RR^{\dimOut \times \dimIn}$ denote the Jacobian of $\vf$
 at $\vx$. 
-If $\vx\opt$ is Pareto-optimal, then it is also critical, i.e.,
-\begin{equation*}
-	-\interior(\Kone) \cap \range(\jacf(\vx\opt)) = \emptyset.
-\end{equation*}
+If $\vx\opt$ is Pareto-optimal, then it is also critical, according to the following definition:
+\begin{definition}
+	The point $\vx\opt$ is Pareto-critical iff
+	\begin{equation*}
+		-\interior(\Kone) \cap \range(\jacf(\vx\opt)) = \emptyset.
+	\end{equation*}
+\end{definition}
+
 Vice versa, if $\vx$ is not critical, then there is a \emph{descent direction}
 $\ve{v} \in \RRin$, with the defining property 
-$$\jacf(\vx)\cdot \ve{v} \in -\interior(\Kone).$$
-For such a direction, there is some step-size bound $\bar{\sz}>0$ such that
+$
+\jacf(\vx) \ve{v} \in -\interior(\Kone).
+$
+For such a direction, there is some step-size bound $\bar{\sz}>0$ with
 $$
-\vf(\vx + \sz \ve{v}) \leqK \vf(\vx) \qquad \forall \sz \in (0, \bar{\sz})
-\quad\text{(see \cite{granadrummondSteepestDescentMethod2005})}
-.
+	\vf(\vx + \sz \ve{v}) \leqK \vf(\vx) \qquad \forall \sz \in (0, \bar{\sz})
+	\quad
+	\text{(see \cite{granadrummondSteepestDescentMethod2005})}
+	.
 $$
-\todo{Make the above proper Definition(s)?}
+
+We will proceed to introduce the maps $\phiC(\bullet)$ and $\func(\bullet,\bullet)$ to 
+facilitate working with the definitions of Pareto-optimality and -criticality.
 Adopting the notation from~\cite{%
 granadrummondSteepestDescentMethod2005,%
 lucambioperezNonlinearConjugateGradient2018%
 },
-let $\mul{\bullet}{\bullet}$ be the usual inner product and 
+let $\mul{\bullet}{\bullet}$ be the usual inner product on $\RR^\dimOut$ and 
 %$C \subseteq \dualKone \setminus \{\vZ\}$ be a generating subset of
 $$\dualKone = 
 	\{
@@ -236,24 +304,40 @@ $$\dualKone =
 the dual cone of $\Kone$.
 Further, let $C \subset \dualKone\setminus \{\vZ\}$ be a compact set generating 
 $\dualKone$ as its conical hull: 
-$\coni(C) = \dualKone.$
-Then, the map 
 $$
+	\dualKone
+	=
+	\coni(C)
+	=
+	\set{
+		\sum_{i=1}^{P}
+		\lambda_i \ve y_i
+		:
+		\lambda_i \ge 0,
+		\ve y_i \in C,
+		P \in \NN_0
+	}
+	.
+$$
+Then, the map 
+\begin{equation}	
 \phiC \colon \RRout \to \RR, 
 \ve{y}\mapsto 
 	\sup_{\ve w \in C}\mul{\ve{y}}{\ve{w}}
-	= \max_{\ve w \in C}\mul{\ve{y}}{\ve{w}}
-$$
+	= 
+	\max_{\ve w \in C}\mul{\ve{y}}{\ve{w}}
+	\label{eqn:phiC_def}
+\end{equation}
 allows for a characterization of $-\Kone$ and $-\interior(\Kone)$ as its
 (strict) sublevel sets at $0$:
 $$
-\ve y \in -\Kone \Leftrightarrow \phiC(\ve y) \leq 0,
-\quad
+\ve y \in -\Kone \Leftrightarrow \phiC(\ve y) \leq 0
+\quad\text{and}\quad
 \ve y \in -\interior(\Kone) \Leftrightarrow \phiC(\ve y) < 0.
 $$
 This map, the support function of the dual cone, has the following properties:
 
-\begin{theorem}[{Lemma 3.1 in \cite{granadrummondSteepestDescentMethod2005}}]%
+\begin{proposition}[{Lemma 3.1 in \cite{granadrummondSteepestDescentMethod2005}}]%
 	\label{thm:phiC_properties}
 	Let $\ve{y}, \ve{y}\prime \in \RRout$.
 	Then
@@ -262,9 +346,9 @@ This map, the support function of the dual cone, has the following properties:
 			and $\phiC(\ve{y})-\phiC(\ve{y}\prime) \le \phiC(\ve{y}-\ve{y}\prime)$.
 		\item If $\ve y \leqK \ve{y}\prime$, then $\phiC(\ve{y}) \leq \phiC(\ve{y}\prime)$.
 			If $\ve y \leK \ve{y}\prime$, then $\phiC(\ve{y}) < \phiC(\ve{y}\prime)$.
-		\item $\phiC$ is Lipschitz with constant 1.
+		\item $\phiC$ is Lipschitz-continuous.
 	\end{enumerate}
-\end{theorem}
+\end{proposition}
 
 Furthermore, if we define $\func\colon \RRin\times\RRin \to \RR$ by
 \begin{equation*}
@@ -272,14 +356,14 @@ Furthermore, if we define $\func\colon \RRin\times\RRin \to \RR$ by
 	=
 		\funcX(\ve{d})
 	= 
-		\phiC(\jacf(\vx)\cdot\ve{d}) 
+		\phiC(\jacf(\vx)\ve{d}) 
 	= 
 		\max_{\ve{w}\in C} \mul{\jacf(\vx)\ve{d}}{\ve{w}}
 	,
 \end{equation*}
-then we can infer criticality from the function $\func$.
+then we can infer criticality from the function $\func$ as follows:
 
-\begin{theorem}[{Lemma 3.3 in \cite{granadrummondSteepestDescentMethod2005}}]%
+\begin{proposition}[{Lemma 3.3 in \cite{granadrummondSteepestDescentMethod2005}}]%
 	\label{thm:criticality_properties}
 	Suppose $\vf$ is continuously differentiable.
 	Consider the following optimization problem:
@@ -299,18 +383,21 @@ then we can infer criticality from the function $\func$.
 		\item The mappings $\vx \mapsto \sd(\vx), \vx \mapsto \optVal(\vx)$ are
 			continuous.
 	\end{enumerate}
-\end{theorem}
+\end{proposition}
 Moreover, in \cite{granadrummondSteepestDescentMethod2005} it is shown that
 $$
-\optVal(\vx) = - \frac{1}{2}\norm{\sd(\vx)}^2
+\optVal(\vx) = - \frac{1}{2}\norm{\sd(\vx)}^2,
 \quad\text{and thus}\quad
 \funcX(\sd) = -\norm{\sd}^2.
 $$
-In the single-objective case, with $\Kone = \RRout_{\ge 0}$, the solution is 
+In the single-objective case, with $\Kone = \RR_{\ge 0}$, the solution is 
 $\sd = - \nabla \ff(\vx)$.
 The problem in \eqref{eqn:sd_problem} thus generalizes the concept of 
 the steepest descent direction, and we obtain a recipe for 
 “translating” nonlinear \ac{cg} directions for multiple objectives.
+Obviously, the choice of $C$ influences the solution set of~\eqref{eqn:sd_problem},
+which is why we might wish to assume $\|\ve y\| = 1$ for all $\ve y \in C$.
+
 Just as in single-objective optimization a sequence of directions 
 $\ve{d}\KK\in \RRin$ 
 is said to fulfill the sufficient decrease condition if there is a constant
@@ -319,24 +406,24 @@ $\mul{-\gradf(\vx\KK)}{\ve{d}\KK} \geq \suffDecConst \norm{\gradf(\vx\KK)}^2,$
 we qualify them accordingly in the multi-objective case:
 
 \begin{definition}
-The directions $\set{\vdK}$ are said to have the 
-\emph{sufficient decrease} property iff	
-\begin{equation}
-- 
-	\funcXK(\ve{d}\KK) 
-=
-	-\phiC(\jacf(\vx\KK)\ve{d}\KK) 
-\bm{\geq}
-	- \suffDecConst \phiC(\jacf(\vx\KK)\sd\KK)
-= 
-	- \suffDecConst \funcXK(\sd\KK)
-=
-	\suffDecConst \norm{\sd\KK}^2.
-\label{eqn:suff_dec}
-\end{equation}
-Should this hold independent of the line-search used to 
-determine a step-size, we can say that the directions
-$\set{\vdK}$ provide \emph{guaranteed} descent.
+	The directions $\set{\vdK}$ are said to have the 
+	\emph{sufficient decrease} property iff	
+		\begin{equation}
+		- 
+			\funcXK(\ve{d}\KK) 
+		=
+			-\phiC(\jacf(\vx\KK)\ve{d}\KK) 
+		\bm{\geq}
+			- \suffDecConst \phiC(\jacf(\vx\KK)\sd\KK)
+		= 
+			- \suffDecConst \funcXK(\sd\KK)
+		=
+			\suffDecConst \norm{\sd\KK}^2.
+		\label{eqn:suff_dec}
+		\end{equation}
+	Should this hold independent of the line-search used to 
+	determine a step-size in an algorithm, we say that the directions
+	$\set{\vdK}$ provide \emph{guaranteed} descent.
 \end{definition}
 
 \section{Algorithm}
@@ -352,22 +439,37 @@ procedure.
 Let $\ve{d}\in \RRin$ be a descent direction for $\vf$ at $\vx$ and let $\ve{e}\in \Kone$
 be a vector such that 
 \begin{equation}
-0 < \constE \leq \mul{\ve{w}}{\ve{e}}\leq 1 \qquad \forall \ve{w}\in C.
-\label{eqn:amidoDinarchy}
+	0 < \constE \leq \mul{\ve{w}}{\ve{e}}\leq 1 \qquad \forall \ve{w}\in C.
+	\label{eqn:amidoDinarchy}
 \end{equation}
-Let $\armijoConst\in(0,1)$. 
-The step-size $\sz > 0$ satisfies the modified Armijo condition if 
-\begin{equation}
-\vf(\vx + \sz\ve{d}) 
-- 
-\vf(\vx) 
-\leqK
--
-\armijoConst \sz^2 \norm{\ve{d}}^2 \ve{e}.
-\label{eqn:armijo_strict}
-\end{equation}
+We can find a suitable vector because $\Kone$ is pointed and $C$ spans its dual cone.
+In case that $\Kone$ is $\RRout_{\geq 0}$ and $C$ contains the canonical basis of $\RRout$,
+simply choose $\ve{e} = \transp{[1, \dots, 1]}$.
 
-There is a suitable step-size $\sz>0$.
+Our step-size should satisfy an Armijo-like condition, where the \ac{rhs} is modified
+to shrink quadratically.
+Modifying the condition found in~\cite{lucambioperezNonlinearConjugateGradient2018}, 
+we get the strict modified Armijo condition:
+\begin{definition}\label{def:armijo_strict}
+	Suppose that $\vf$ is differentiable in an open set containing $\vx \in \RRin$ and that 
+	$\vd$ is a descent-direction. 
+	Let $\armijoConst\in(0,1)$ be constant. 
+	The step-size $\sz > 0$ satisfies the (strict) modified Armijo condition if 
+	\begin{equation}
+		\vf(\vx + \sz\ve{d}) 
+		- 
+		\vf(\vx) 
+		\leqK
+		-
+		\armijoConst \sz^2 \norm{\ve{d}}^2 \ve{e}.
+		\label{eqn:armijo_strict}
+	\end{equation}
+\end{definition}
+The next proposition shows that a suitable step-size actually exists.
+\begin{proposition}
+	Suppose the conditions of~\cref{def:armijo_strict} hold.
+	Then there is a suitable step-size $\sz>0$ satisfying~\eqref{eqn:armijo_strict}.
+\end{proposition}
 \begin{proof}
 	Suppose there was not:
 	$$
@@ -427,32 +529,98 @@ There is a suitable step-size $\sz>0$.
 	\label{eqn:disembranglingJonty}
 	\end{align}
 	where, by definition of the total differential, 
-	$$
-	\frac{\ve{R}(\sz)}{\sz} \to \vZ \quad\text{as $\sz \to 0$ from above.}
-	$$
+	$
+	\dfrac{\ve{R}(\sz)}{\sz} \to \vZ,
+	$ 
+	as $\sz \to 0$ from above.
 	Because $\ve{d}$ is a descent direction, the value on the \ac{lhs}
 	in~\eqref{eqn:disembranglingJonty} is 
 	constant and strictly negative, while the \ac{rhs} goes to zero.
 	A contradiction!
 \end{proof}
 
-A step-size satisfying~\eqref{eqn:armijo_strict} can be found by backtracking:
+There is also a less strict variant of the modified Armijo condition:
+\begin{definition}
+	Under the same conditions as in~\cref{def:armijo_strict},
+	the step-size $\sz > 0$ satisfies the weak modified Armijo condition if 
+	\begin{equation}
+		\phiC\args{\vf(\vx + \sz\ve{d})}
+		- 
+		\phiC\args{\vf(\vx)}
+		\leq
+		-
+		\armijoConst \sz^2 \norm{\ve{d}}^2 \constE.
+		\label{eqn:armijo_weak}
+	\end{equation}
+\end{definition}
+For $\Kone = \RRout_{\geq 0}$, the weak condition only guarantees descent in one objective,
+so the algorithm will produce value vectors that are not monotonic with respect to $\leqK$.
+Likely, larger steps are taken and the sequence $\set{\phiC(\vf(\vxK))}_\kk$ will be monotonic.
+\begin{proposition}
+	The strict modified Armijo condition~\eqref{eqn:armijo_strict} implies the weak 
+	condition~\eqref{eqn:armijo_weak}.
+\end{proposition}
+\begin{proof}
+	Suppose the strict Armijo condition~\eqref{eqn:armijo_strict} is fulfilled.
+%	$$
+%	\armijoConst \sz^2 \norm{\vdK}^2 \ve e \leqK 
+%	\vf(\vxK) - \vf(\vxK + \szK \vdK).
+%	$$
+	With~\cref{thm:phiC_properties} it follows that 
+	\begin{align*}
+	\phiC\args{
+		\vf(\vx + \sz \vd)
+	}
+	-
+	\phiC\args{
+		\vf(\vx)
+	}
+	&\le
+	\phiC\args{
+		\vf(\vx + \sz \vd)
+		-
+		\vf(\vx)
+	}
+	\le
+	\phiC\args{
+	- \armijoConst \sz^2 \norm{\vd}^2 \ve e
+	}
+	\end{align*}
+	For the \ac{rhs} we get from the definition~\eqref{eqn:phiC_def} that
+	$$
+	\phiC\args{
+	- \armijoConst \sz^2 \norm{\vd}^2 \ve e
+	}
+	=
+	\max_{\ve w \in C}
+	\args{- \armijoConst \sz^2 \norm{\vd}^2}
+	\mul{\ve w}{\ve e}
+	= 
+	- \armijoConst \sz^2 \norm{\vd}^2
+	\min_{\ve w\in C}
+	\mul{\ve w}{\ve e}
+	=
+	- \armijoConst \sz^2 \norm{\vd}^2
+	\constE.
+	$$
+\end{proof}
+
+A step-size satisfying~\eqref{eqn:armijo_strict} or~\eqref{eqn:armijo_weak} 
+can be found by backtracking:
 Let $\kk \in \NN, \vx\KK\in \RRin$ and let $\ve{d}\KK\in \RRin$ be a descent direction
 of $\vf$ at $\vx\KK$. Further, let 
 $\armijoFactor \in (0,1)$ and $\armijoConst \in (0,1)$ be constants and 
 $\szKZ$ an initial step-size bounded below by the constant $\szLB>0$.
-Take
+
 \begin{equation}
 	\szK 
 	= 
 		\max_{j\in \NN_0} \armijoFactor^j\szKZ
-		\quad\text{such that~\eqref{eqn:armijo_strict} holds.}
+		\quad\text{such that~\eqref{eqn:armijo_strict} (or~\eqref{eqn:armijo_weak}) holds.}
 \label{eqn:backtracking_stepsize}
 \end{equation}
 
 \subsection{Algorithm}
-We are now in a position to state the complete algorithm
-in~\cref{algo:main_algo}.
 
 \begin{algorithm}
 	\caption{Algorithm with Generic Descent Direction}%
@@ -465,102 +633,122 @@ in~\cref{algo:main_algo}.
 		\vxZ\in \RRin,
 		\armijoConst \in (0,1), \armijoFactor \in (0,1),
 		\suffDecConst > 0,
-		\szKZ \geq \szLB > 0.
-		$
+		\szKZ \geq \szLB > 0
+		$. A step-size condition $(\star)$: either~\eqref{eqn:armijo_strict} or~\eqref{eqn:armijo_weak}.
 	}
 	\KwResult{
-		A critical point $\vx\KK$ or a sequence $\{\vx\KK\}_{\kk\in\NN_0}$, containing a critical accumulation point.
+		A critical point $\vx\KK$ or a critical sequence $\{\vx\KK\}_{\kk\in\NN_0}$.
 	}
 	\For{$\kk \in \NN_0$}{
 		\lIf{$\vxK$ is critical}{STOP}
 		Compute a direction $\vdK$ satisfying~\eqref{eqn:suff_dec}\;
-		Compute a step-size $\szK$ by backtracking like in~\eqref{eqn:backtracking_stepsize}\;
+		Compute a step-size $\szK$ satisfying $(\star)$ by backtracking like in~\eqref{eqn:backtracking_stepsize}\;
 		Set $\vx\KKn \leftarrow \vxK + \szK \vdK$\;
 	}
 \end{algorithm}
 
+We are now in a position to state the complete algorithm
+in~\cref{algo:main_algo}.
 In the following we continue to establish results meant to prove converge
 for specific directions $\set{\vdK}$ in subsequent sections.
 Of course, there is nothing to show if we stop at a critical point 
 with finite termination.
 We hence implicitly assume infinite sequences from now on.
-For the analysis, we introduce standard assumptions:
+For the analysis, we introduce a set of assumptions:
 	
 \begin{assumption}\label{ass:funcs_differentiable}
 	For a given initial point $\vxZ$, the function 
 	$\vf\colon \RRin \to \RRout$ is defined on the set
 	$$
-	\slsf = \set{
-		\vx \in \RRin: \vf(\vx) \leqK \vf(\vxZ)
-	}.
+	\slsf =
+	\begin{cases}
+		\set{
+			\vx \in \RRin: \vf(\vx) \leqK \vf(\vxZ)
+		},
+		&\text{if~\eqref{eqn:armijo_strict} is used,}
+		\\
+		\set{
+			\vx \in \RRin: \phiC(\vf(\vx)) \leq \phiC(\vf(\vxZ))
+		},
+		&\text{if~\eqref{eqn:armijo_weak} is used.}
+	\end{cases}
 	$$
 	Furthermore, $\vf$ is continuously differentiable in an open set 
-	containing $\slsf$ and its Jacobian $\jacf$ is Lipschitz continuous
+	containing $\slsf$.
+\end{assumption}
+
+\begin{assumption}\label{ass:func_grads_lipschitz}
+	\Cref{ass:funcs_differentiable} holds and the Jacobian of $\vf$ is Lipschitz-continuous
 	with constant $\lipConstf > 0$.
 \end{assumption}
 
 \begin{assumption}\label{ass:monotonic_seq_bounded}
-	Every non-increasing sequence in $\vf(\slsf)$,
-	$$
-	\{\ve{y}\KK\}_{k} \subseteq \set{\vf(\vx): \vx\in \slsf},
-	\quad \ve{y}\KKn \leqK \ve{y}\KK \;\forall \kk,
-	$$
-	is bounded below by some $\lbf\in \RRout$ as per
-	$
-	\lbf \leqK \ve{y}\KK
-	$ for all $\kk$.
-	In terms of $\phiC$, this means 
-	$
-	\phiC(\lbf)-\phiC(\ve{y}\KK)
-	\leq 
-	\phiC(\lbf - \ve{y}\KK)
-	\leq 
-	0
-	$
-	for all $k$.
+	Depending on the step-size condition, the following holds:
+	\begin{enumerate}
+		\item 
+			If the strict condition ~\eqref{eqn:armijo_strict} is used:
+			Every non-increasing sequence in $\vf(\slsf)$,
+			$$
+			\{\ve{y}\KK\}_{\kk} \subseteq \set{\vf(\vx): \vx\in \slsf},
+			\quad \ve{y}\KKn \leqK \ve{y}\KK \;\forall \kk,
+			$$
+			is bounded below by some $\lbf\in \RRout$ as per
+			$
+			\lbf \leqK \ve{y}\KK
+			$ for all $\kk$.
+			\Cref{thm:phiC_properties} then implies that $\set{\phiC(\ve y\KK)}_\kk$
+			is non-increasing and that it is bounded,
+			$$
+			\lbphi := \phiC(\lbf)\leq \phiC(\ve{y}\KK)\; \forall \kk.
+			$$
+		\item If the weak condition~\eqref{eqn:armijo_weak} is used:
+			For every sequence in $\vf(\slsf)$
+			with non-increasing $\phiC$ values, i.e.,
+			$$
+			\{\phiC(\ve{y}\KK)\}_{\kk},
+			\quad \phiC(\ve{y}\KKn) \leqK \phiC(\ve{y}\KK)\;\forall\kk,
+			$$
+			the sequence of values is bounded below by some $\lbphi\in \RRout$ as per
+			$
+			\lbphi \leqK \phiC(\ve{y}\KK)
+			$ for all $\kk$.
+	\end{enumerate}
 \end{assumption}
 
+Our assumptions are rather granular to indicate what is strictly necessary for the results to
+work.
+Instead of~\cref{ass:func_grads_lipschitz,ass:monotonic_seq_bounded} we could also 
+demand the sublevel set $\slsf$ to be bounded.
+Lipschitz-continuity of the Jacobian and boundedness of every (value) sequence automatically 
+follows.
+It is rather a matter of taste that we try to have it optional whenever possible:
+\begin{assumption}\label{ass:sublevelset_bounded}
+	The sublevel set $\slsf$ as defined in~\cref{ass:funcs_differentiable} is bounded.
+\end{assumption}
+
+Our first results concerns the step-length.
+It goes to zero because of the modified Armijo condition:
 \begin{lemma}%
 	\label{thm:stepNorm_zero}
-	Consider an algorithmic sequence $\set{(\vxK, \vdK, \szK)}_\kk$.
-	Suppose~\Cref{ass:monotonic_seq_bounded} holds. 
+	Consider a sequence $\set{(\vxK, \vdK, \szK)}_\kk$ produced by~\cref{algo:main_algo}.
+	Suppose~\Cref{ass:funcs_differentiable,ass:monotonic_seq_bounded} hold. 
 	Then 
 	\begin{equation*}
-		\lim_{\kk\to \infty} \sz^2 \norm{\ve{d}_k}^2
+		\lim_{\kk\to \infty} \szK^2 \norm{\ve{d}_k}^2
 		=
-		\lim_{\kk\to \infty} \sz^2 \norm{\ve{d}_k}^2
+		\lim_{\kk\to \infty} \szK \norm{\ve{d}_k}
 		= 
 		0.
 	\end{equation*}
 \end{lemma}
 
 \begin{proof}
-	The Armijo condition~\eqref{eqn:armijo_strict} holds.
+	By design, the weak Armijo condition~\eqref{eqn:armijo_weak} holds:
 %	$$
 %	\armijoConst \sz^2 \norm{\vdK}^2 \ve e \leqK 
 %	\vf(\vxK) - \vf(\vxK + \szK \vdK).
 %	$$
-	With~\cref{thm:phiC_properties} it follows that 
-	\begin{align*}
-	\phiC\args{
-		\vf(\vxK + \szK \vdK)
-	}
-	-
-	\phiC\args{
-		\vf(\vxK)
-	}
-	&\le
-	\phiC\args{
-		\vf(\vxK + \szK \vdK)
-		-
-		\vf(\vxK)
-	}
-	\le
-	\phiC\args{
-	- \armijoConst \sz^2 \norm{\vdK}^2 \ve e
-	}
-	\\
-	\Leftrightarrow\quad
+	$$
 	\phiC\args{
 		\vf(\vxK)
 	}
@@ -568,43 +756,11 @@ For the analysis, we introduce standard assumptions:
 	\phiC\args{
 		\vf(\vxK + \szK \vdK)
 	}
-	&\ge 
-	-
-	\phiC\args{
-	- \armijoConst \szK^2 \norm{\vdK}^2 \ve e
-	}
-	=
-	\armijoConst \szK^2 \norm{\vdK}^2 
-	\underbrace{
-		\inf_{\ve{w}\in C} \mul{\ve w}{\ve e}
-	}_{\geq \constE > 0}
+	\ge 
+	\armijoConst \constE \szK^2 \norm{\vdK}^2 
 	.
-	\end{align*}
-	% Since $C$ is compact, $\mul{\ve w}{\bullet}$ is linear, and 
-	% $\mul{\ve w}{\ve e}>0$ for all $\ve w$,
-	% $$
-	% \inf_{\ve{w}\in C} \mul{\ve w}{\ve e} 
-	% =
-	% \min_{\ve{w}\in C}\mul{\ve{w}}{\ve{e}}
-	% = 
-	% \constE > 0.
-	% $$
-	% There is thus a positive constant $\const > 0$ 
-	% with
-	% $$
-	% \const \szK^2 \norm{\vdK}^2
-	% \leq
-	% \phiC\args{
-	% 	\vf(\vxK)
-	% }
-	% -
-	% \phiC\args{
-	% 	\vf(\vxK + \szK \vdK)
-	% }
-	% $$
-	% \todo{Prepend this fact in the definition of $\ve{e}$ and mention
-	% the extreme value theorem.}
-	Combining all constants into $\const >0$ and summing up to $\kappa \in \NN_0$ gives 
+	$$
+	Combining the constants into $\const >0$ and summing up to $\kappa \in \NN_0$ gives 
 	$$
 	\const
 	\sum_{\kk=0}^\kappa
@@ -629,9 +785,11 @@ For the analysis, we introduce standard assumptions:
 		\vf(\vxZ)
 	}
 	-
-	\phiC(\lbf)
+	\lbphi
+	=
+	\text{const}.
 	$$
-	The \ac{lhs} is a monotonically increasing sequence and bounded above.
+	We see that the \ac{lhs} is a monotonically increasing sequence and bounded above.
 	Due to the Monotone Convergence Theorem, it must be convergent, i.e.,
 	$$\sum_{k=0}^\infty \szK^2 \norm{\vdK}^2 < \infty $$
 % For parts of the convergence theory, it actually suffices to have
@@ -658,10 +816,17 @@ For the analysis, we introduce standard assumptions:
 % 	\end{align*}
 \end{proof}
 
-\begin{theorem}%
+Next, we in derive a bound resembling the Zoutendijk condition often encountered 
+in single-objective optimization.
+From now on, we will refrain from explicitly stating that the iterates are generated 
+by~\cref{algo:main_algo}.
+\begin{proposition}%
 	\label{thm:armijoZoutendijk}
-	Suppose~\cref{ass:funcs_differentiable,ass:monotonic_seq_bounded} hold
-	and that the step-sizes $\szK$ in~\cref{algo:main_algo}
+	Suppose~\cref{%
+	ass:funcs_differentiable,%
+	ass:func_grads_lipschitz,%
+	ass:monotonic_seq_bounded}
+	hold and that the step-sizes $\szK$ in~\cref{algo:main_algo}
 	satisfy~\cref{eqn:armijo_strict}.  
 	Then following Zoutendijk-like condition follows:
 	\begin{equation}
@@ -680,15 +845,19 @@ For the analysis, we introduce standard assumptions:
 		}
 		<
 		\infty
+		\label{eqn:zoutendijk}
 	\end{equation}
-\end{theorem}
+\end{proposition}
+
 \begin{proof}
 	Let $\kk\in\NN_0$ and consider two cases.
 
 	First, suppose $\szK\ne\szKZ$.
-	Due to the backtracking procedure, the Armijo condition must be violated 
-	for $\szK \armijoFactor^{-1} > \szK$.
-	I.e., there is $\ve{w}\in C$ such that 
+	Due to the backtracking procedure, the strict Armijo condition~\eqref{eqn:armijo_strict}
+	must be violated for $\szK \armijoFactor^{-1} > \szK$.
+	(If the weak condition is used, and it is violated for some stepsize, then the strict
+	condition cannot hold neither for that stepsize.)
+	There thus is $\ve{w}\in C$ such that 
 	\begin{align*}
 		\mul{
 			\ve w
@@ -697,7 +866,7 @@ For the analysis, we introduce standard assumptions:
 			-
 			\vf(\vx)
 			+ 
-			\armijoConst \frac{\sz^2}{\armijoFactor^2} \norm{\vdK}^2 \ve{e}
+			\armijoConst \frac{\szK^2}{\armijoFactor^2} \norm{\vdK}^2 \ve{e}
 		}
 	&
 	> 
@@ -705,12 +874,12 @@ For the analysis, we introduce standard assumptions:
 	\end{align*}
 	It follows, that
 	\begin{align*}
-	-\armijoConst \frac{\sz^2}{\armijoFactor^2} \norm{\vdK}^2
+	-\armijoConst \frac{\szK^2}{\armijoFactor^2} \norm{\vdK}^2
 	\leq
 	\mul{
 		\ve w
 	}{
-		-\armijoConst \frac{\sz^2}{\armijoFactor^2} \norm{\vdK}^2 \ve{e}
+		-\armijoConst \frac{\szK^2}{\armijoFactor^2} \norm{\vdK}^2 \ve{e}
 	}
 	<
 	\mul{
@@ -729,7 +898,7 @@ For the analysis, we introduce standard assumptions:
 	gives some 
 	$h \in (0,1)$ with
 	\begin{align*}	
-		-\armijoConst \frac{\sz^2}{\armijoFactor^2} \norm{\vdK}^2
+		-\armijoConst \frac{\szK^2}{\armijoFactor^2} \norm{\vdK}^2
 		&\leq
 		\frac{\szK}{\armijoFactor}
 		\mul{
@@ -757,20 +926,24 @@ For the analysis, we introduce standard assumptions:
 		\lipConstf
 		\norm{\ve{w}}\norm{\vdK}^2 
 		+ 
+		\frac{\szK}{\armijoFactor}
 		\funcXK(\vdK),
 	\end{align*}
 	where in the last line we have used the Cauchy-Schwarz inequality
-	and the Lipschitz continuity of $\jacf$ by~\cref{ass:funcs_differentiable}.
+	and the Lipschitz continuity of $\jacf$ (\cref{ass:func_grads_lipschitz}).
 	Because $C$ is compact, $\norm{\ve w}$ is bounded and there is a constant
 	$\const > 0$ such that
 	$$
 	\szK\ge \const \frac{-\funcXK(\vdK)}{\norm{\vdK}^2}.
 	$$
-	Plugging this into the Armijo condition for $\szK$ gives
+	The \ac{rhs} is positive, because $\vdK$ is a descent direction.
+	The algorithm also ensures that the sufficient decrease conditions holds.
+	Plugging the last equation into the weak Armijo condition~\eqref{eqn:armijo_weak},
+	which must hold for $\szK$, results in
 	\begin{equation}	
 	\phiC(\vf(\vxK))
 	-
-	\phiC\args{\vf\args{\vxK}}
+	\phiC\args{\vf\args{\vxK+\szK \vdK}}
 	\geq 
 	\armijoConst
 	\const
@@ -780,7 +953,7 @@ For the analysis, we introduce standard assumptions:
 	}{
 		\norm{\vdK}^2
 	}
-	\geq 
+	\stackrel{\eqref{eqn:suff_dec}}\geq
 	\armijoConst
 	\const
 	\constE
@@ -800,8 +973,8 @@ For the analysis, we introduce standard assumptions:
 	\leq
 	\funcXK(\suffDecConst^{-1}\vdK) + \frac{\norm{\vdK}^2}{2\suffDecConst^2}
 	$$
-	Because $\funcXK(\suffDecConst^{-1}\vdK) \leq \funcXK(\sdK)$,
-	it must hold that $\norm{\sdK}^2 \leq \dfrac{\norm{\vdK}^2}{\suffDecConst^2}$.
+	The sufficient decrease condition gives $\funcXK(\suffDecConst^{-1}\vdK) \leq \funcXK(\sdK)$,
+	so it must hold that $\norm{\sdK}^2 \leq \dfrac{\norm{\vdK}^2}{\suffDecConst^2}$.
 	Thus,
 	$$
 	\frac{
@@ -817,7 +990,7 @@ For the analysis, we introduce standard assumptions:
 	\args{
 	\phiC(\vf(\vxK))
 	-
-	\phiC\args{\vf\args{\vxK}}
+	\phiC\args{\vf\args{\vxK+\szK \vdK}}
 	}
 	$$
 	As $\szKZ \ge \szLB > 0$ for all $k$,
@@ -832,24 +1005,17 @@ For the analysis, we introduce standard assumptions:
 	\leq
 	\phiC(\vf(\vxK))
 	-
-	\phiC\args{\vf\args{\vxK}}
+	\phiC\args{\vxK+\szK \vdK}
 	\label{eqn:skiascopyNoncoital}
     \end{equation}
 	for some constant $\bar{\const}>0$.
 
-	Similarly to above,
-	with~\cref{ass:monotonic_seq_bounded} we can 
-	deduce convergence from~\eqref{eqn:untuningCreatrixes}
-	and~\eqref{eqn:skiascopyNoncoital}:
-	$$
-	\sum_{\kk\in\NN_0}\frac{
-		\norm{\sdK}^4
-	}{
-		\norm{\vdK}^2
-	}
-	<
-	\infty.
-	$$
+	Like in the proof of~\cref{thm:stepNorm_zero},
+	we can 
+	deduce convergence of the series in~\eqref{eqn:zoutendijk}
+	from~\eqref{eqn:untuningCreatrixes}
+	and~\eqref{eqn:skiascopyNoncoital} with~\cref{ass:monotonic_seq_bounded},
+	by realizing that the partial sums are again increasing and bounded.
 \end{proof}
 
 Later, the Zoutendijk property allows for a convenient 
@@ -859,12 +1025,12 @@ made explicit with the following corollary.
 \begin{corollary}\label{thm:convergence}
 	Suppose, the criticality is uniformly bounded from below via
 	\begin{equation}
-		\norm{\vdK} \geq \critBound > 0 
+		\norm{\sdK} \geq \critBound > 0 
 		\qquad \forall \kk\in\NN_0.
 		\label{eqn:critBoundedBelow}
 	\end{equation}
 	If the directions $\set{\vdK}$ and 
-	step-sizes are chosen so 
+	step-sizes $\set{\szK}$ are chosen so 
 	that~\cref{thm:armijoZoutendijk}
 	applies, \textbf{and} it additionally holds that
 	$$
@@ -879,15 +1045,14 @@ made explicit with the following corollary.
 	\liminf_{\kk \to \infty}
 	\norm{\sdK} = 0.
 	$
-	That is, there is a subsequence of iterates $\{\vxK\}$
+	We say, that the sequence $\set{\vxK}$ is critical.
+	Furthermore, if the domain is bounded (\Cref{ass:sublevelset_bounded}),
+	there is a subsequence of iterates $\{\vxK\}$
 	converging to a Pareto-critical point.
 \end{corollary}
 
-We might refer to a subsequence converging to a 
-Pareto-critical point as a \emph{critical} sequence
-later on.
 If the directions $\set{\vdK}$ remain bounded, then
-this constitutes a special case:
+this constitutes a special case, as can be easily verified.
 \begin{corollary}%
 	\label{thm:dirsBoundedConvergence}
 	Suppose that~\eqref{eqn:critBoundedBelow} holds and 
@@ -897,13 +1062,20 @@ this constitutes a special case:
 	\norm{\vdK} \leq \Const_{\vd}
 	\qquad \forall \kk \in \NN_0,
 	$$
-	then there is a critical subsequence.
+	then the algorithm has a critical sequence.
 \end{corollary}
 
 \section{Specific Directions with Guaranteed Descent}
 
+All that is left to do, is to actually provide directions $\set{\vdK}$ that
+can be used with~\cref{algo:main_algo}.
+The directions presented in this section are adapted from single-objective schemes,
+of which there are many.
+Hence, our list is by no means complete, and there are many more approaches to explore.
+\todo{Insert a few references from single-objective optimization.}
+
 \subsection{Two Flavors of Fletcher-Reeves}
-We will show two fun variants derived from 
+We will show two variants, derived from 
 the single-objective scheme in~\cite{zhangGlobalConvergenceModified2006}.
 The directions $\vdK$ are inspired by the
 classical \ac{fr} recipe and given by
@@ -964,8 +1136,8 @@ the product in $\theta\kK$ as per
 	\label{eqn:hyposulphurousTontiners}
 \end{equation}
 does not suffice to show the sufficient decrease property~\eqref{eqn:suff_dec}.
-$\tilde{\theta}\kK$ might become negative.
-This can be avoided with standard Wolfe conditions.
+$\tilde{\theta}\kK$ might become negative (and this actually happens in practice).
+A negative coefficient can be avoided with standard Wolfe conditions.
 Or with restarts, as in the following definition:
 \begin{equation}
 	\vdK
@@ -991,14 +1163,14 @@ Or with restarts, as in the following definition:
 	\label{eqn:frMO1}
 \end{equation}
 
-\begin{theorem}
+\begin{proposition}
 	The directions in~\eqref{eqn:frMO1}
 	have the sufficient decrease property~\eqref{eqn:suff_dec}
 	with $\suffDecConst = 1$.
-\end{theorem}
+\end{proposition}
 
 \begin{proof}
-	For $\kk=0$ and $\tilde\theta\kK$ there is nothing
+	For $\kk=0$ or $\tilde\theta\kK < 0$ there is nothing
 	to show.
 	Assume $\kk \geq 1$ and $\tilde\theta\kK \geq 0$.
 	Let $\ve{w}\in C$.
@@ -1045,9 +1217,13 @@ Or with restarts, as in the following definition:
 			+\funcXK(\vd\KKp)
 			}
 		}{\funcXKp(\sd\KKp)}
+		\\
+		&=
+		\funcXK(\sdK)
+		\frac{\funcXKp(\vd\KKp)}{\funcXKp(\sd\KKp)}
 		.
 	\end{align*}
-	By induction $\funcXKp(\vd\KKp) \leq \funcXKp(\sd\KKp)$
+	By induction $\funcXKp(\vd\KKp) \leq \funcXKp(\sd\KKp)$,
 	and finally
 	$$
 	\mul{
@@ -1064,17 +1240,18 @@ Or with restarts, as in the following definition:
 	$$
 \end{proof}
 
-\begin{theorem}%
+We now show that the directions also fit~\cref{thm:convergence}.
+\begin{proposition}%
 	\label{thm:frMO1convergence}
 	Suppose~\cref{%
 	ass:funcs_differentiable,%
+	ass:func_grads_lipschitz,%
 	ass:monotonic_seq_bounded}
 	hold and that the criticality $\norm{\sdK}$ is 
 	bounded below like in~\eqref{eqn:critBoundedBelow}.
-	Then the Algorithm with modified Armijo-stepsizes
-	according to~\eqref{eqn:armijo_strict} and with directions defined
-	by~\eqref{eqn:frMO1} generates a critical subsequence.
-\end{theorem}
+	Then the Algorithm with directions defined
+	by~\eqref{eqn:frMO1} generates a critical sequence.
+\end{proposition}
 
 \begin{proof}
 	Denote by $\mathcal P\subseteq \NN_0$ those iteration
@@ -1128,10 +1305,10 @@ Or with restarts, as in the following definition:
 		\beta\kK^2 \norm{\vdKp}^2
 		+ 
 		2\theta\kK \beta\kK 
-		\mul{\sdK}{\vdKp}
+		\mul{\sdK}{\vdKp},
 		\nonumber
-		\shortintertext{and multiplication with $\sdK$ results in}
-		\mul{\sdK}{\vdKp}
+		\shortintertext{whilst multiplication with $\sdK$ results in}
+		\mul{\sdK}{\vdK}
 		&=
 		\theta\kK
 		\norm{\sdK}^2
@@ -1156,7 +1333,8 @@ Or with restarts, as in the following definition:
 	sum of gradients.
 	More precisely, let $\tilde C = \conv(C)$, then 
 	$$
-	\sdK = \transp{\jacf(\vxK)}\ve{w}^*
+	\sdK =
+	- \transp{\jacf(\vxK)}\ve{w}^*
 	\quad\text{with}\quad
 	\ve{w}^* = 
 	\argmin_{\ve w\in \tilde C}
@@ -1164,7 +1342,7 @@ Or with restarts, as in the following definition:
 	$$
 	Thus,
 	\begin{align*}
-	\mul{\sdK}{\vdK}
+	\mul{\vdK}{\sdK}
 	&=
 	-\mul{\vdK}{\transp{\jacf(\vxK)}\ve{w}^*}
 	\\
@@ -1184,35 +1362,37 @@ Or with restarts, as in the following definition:
 	\geq 0,
 	\end{align*}
 	where we have used the fact that it does not matter
-	whether we calculate $\funcXK$ over $C$ or $\tilde C$,
-	and lastly the sufficient decrease property of $\vdK$.
+	whether we compute $\funcXK$ over $C$ or $\tilde C$,
+	and lastly the sufficient decrease property of $\vdK$ with constant 1.
 	It follows that
-	$$
-	\frac{
-		2 \theta\kK 
-		\mul{\sdK}{\vdK}
-	}{
-		\norm{\sdK}^4
-	}
-	=
-	\frac{
-		2 \theta\kK 
-		\mul{\sdK}{\vdK}
-	}{
-		(-\funcXK(\sdK))
-		(-\funcXK(\sdK))
-	}
-	\leq
-	\frac{
-		2 \theta\kK 
-		\mul{\sdK}{\vdK}
-	}{
-		\mul{\sdK}{\vdK}
-		(-\funcXK(\sdK))
-	}
-	= 
-	\frac{2\theta\kK}{\norm{\sdK}^2}.
-	$$
+	\begin{equation}
+		\frac{
+			2 \theta\kK 
+			\mul{\sdK}{\vdK}
+		}{
+			\norm{\sdK}^4
+		}
+		=
+		\frac{
+			2 \theta\kK 
+			\mul{\sdK}{\vdK}
+		}{
+			(-\funcXK(\sdK))
+			(-\funcXK(\sdK))
+		}
+		\leq
+		\frac{
+			2 \theta\kK 
+			\mul{\sdK}{\vdK}
+		}{
+			\mul{\sdK}{\vdK}
+			(-\funcXK(\sdK))
+		}
+		= 
+		\frac{2\theta\kK}{\norm{\sdK}^2}
+		.
+		\label{eqn:commentatorSasarara}
+	\end{equation}
 	Combining this with~\eqref{eqn:ethylsBabyproofed} gives
 	\begin{align}
 		\frac{
@@ -1240,7 +1420,7 @@ Or with restarts, as in the following definition:
 		}
 		\nonumber
 		\\
-		&\leq
+		&\stackrel{eqn:commentatorSasarara}\leq
 		\frac{
 			\beta\kK^2\norm{\vdKp}^2
 		}{
@@ -1439,6 +1619,13 @@ The directions follow as
 	\tag{FR~MOII}
 	\label{eqn:frMO2}
 \end{equation}
+Note, that~\eqref{eqn:doorsAttention} can be cheaply solved if $C$ is discrete 
+(i.e., $\dualKone$ is finitely generated).
+It then boils down to a few For-loops.
+Alternatively, linear programming can be applied to the convex relaxation, 
+as the problem cost function is linear in both arguments.
+Depending on how the problem is solved, a MiniMax problem might be preferable,
+but equality does not necessarily hold here.
 % \begin{equation}
 % 	\vdK =
 % 	\begin{cases}
@@ -1456,78 +1643,17 @@ The directions follow as
 % 	\label{eqn:frMO2}
 % \end{equation}
 
-\begin{theorem}
+\begin{proposition}
 	The directions in~\eqref{eqn:frMO2} have the 
 	sufficient decrease property~\eqref{eqn:suff_dec}
 	with $\suffDecConst = 1$.
-\end{theorem}
+\end{proposition}
 
 \begin{proof}
 	The property trivially holds for $\kk=0$.
 	Let $\kk \geq 1$.
-	By construction~\eqref{eqn:frMO2}, it
-	holds that
-	% \begin{align*}
-	% 	\funcXK(\vdK)
-	% 	&=
-	% 	\mul{\ve{v}^*}{\jacf(\vxK) \vdK}
-	% 	\\
-	% 	&=
-	% 	\mul{\ve{v}^*}{\jacf(\vxK)
-	% 	\args{
-	% 		\theta\kK(\ve w^*)
-	% 		\sdK
-	% 		+
-	% 		\beta\kK(\ve w^*)
-	% 		\vdKp
-	% 	}}
-	% 	\\
-	% 	&=
-	% 	\theta\kK(\ve w^*)
-	% 	\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
-	% 	+
-	% 	\beta\kK(\ve w^*)
-	% 	\mul{\ve{v}^*}{\jacf(\vxK)\vdKp}
-	% 	\\
-	% 	&\stackrel{\eqref{eqn:doorsAttention}}\leq
-	% 	\theta\kK(\ve v^*)
-	% 	\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
-	% 	+
-	% 	\beta\kK(\ve v^*)
-	% 	\mul{\ve{v}^*}{\jacf(\vxK)\vdKp}
-	% 	\\
-	% 	&\stackrel{\eqref{eqn:characteriserAbout}}=
-	% 	% \frac{
-	% 	% 	\args{
-	% 	% 		\mul{\ve v^*}{\jacf(\vxK)\vdKp}
-	% 	% 		-
-	% 	% 		\mul{\ve v^*}{\jacf(\vxKp)\vdKp}
-	% 	% 	}
-	% 	% 	\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
-	% 	% 	- 
-	% 	% 	\mul{\ve v^*}{\jacf(\vxK)\sdK}
-	% 	% 	\mul{\ve{v}^*}{\jacf(\vxK)\vdKp}
-	% 	% 	%-\mul{\ve v^*}{\jacf(\vxK)\sdK}
-	% 	% 	%\mul{\ve v^*}{\jacf(\vxKp)\vdKp}
-	% 	% }{
-	% 	% 	-\funcXKp(\sdKp)
-	% 	% }
-	% 	\frac{-
-	% 	\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
-	% 	\mul{\ve v^*}{\jacf(\vxKp)\vdKp}
-	% 	}{
-	% 		-\funcXKp(\sdKp)
-	% 	}
-	% 	\\
-	% 	&\stackrel{df}\leq
-	% 	\funcXK(\sdK)
-	% 	\frac{
-	% 		\funcXKp(\vdKp)
-	% 	}{
-	% 		\funcXKp(\sdKp)
-	% 	}
-	% 	.
-	% \end{align*}
+	The definition~\eqref{eqn:frMO2}
+	gives
 	\begin{align*}
 		\funcXK(\vdK)
 		&=
@@ -1580,7 +1706,7 @@ The directions follow as
 			-\funcXKp(\sdKp)
 		}
 		\\
-		&\stackrel{df}\leq
+		&\stackrel{\text{def.}}\leq
 		\funcXK(\sdK)
 		\frac{
 			\funcXKp(\vdKp)
@@ -1603,16 +1729,17 @@ The directions follow as
 	because of $\frac{\funcXKp(\vdKp)}{\funcXKp(\sdKp)}\leq 1$.
 \end{proof}
 
-\begin{theorem}
+\begin{proposition}
 	Suppose~\cref{%
 	ass:funcs_differentiable,%
+	ass:func_grads_lipschitz,%
 	ass:monotonic_seq_bounded}
 	hold and that the criticality $\norm{\sdK}$ is 
 	bounded below like in~\eqref{eqn:critBoundedBelow}.
 	Then the Algorithm with modified Armijo-stepsizes
 	according to~\eqref{eqn:armijo_strict} and with directions defined
 	by~\eqref{eqn:frMO2} generates a critical subsequence.
-\end{theorem}
+\end{proposition}
 
 \begin{proof}
 	The proof is the same as 
@@ -1645,7 +1772,7 @@ $$
 	&\text{if $\kk\geq1 $.}
 \end{cases}
 $$
-Here, $\ve{g}\KK = \gradf{\vxK}$ and the coefficients are defined by
+Here, $\ve{g}\KK = \gradf(\vxK)$ and the coefficients are defined by
 \begin{equation*}
 	\beta\kK = 
 	\frac{
@@ -1710,11 +1837,11 @@ Then, let
 \end{equation}
 where $(\ve{v}^*, \ve{w}^*) \in C\times C$ solve
 \begin{equation}
-	\phiC\args{
-		\min_{\ve{w}\in C}
-		\jacf(\vxK)\vdK(\ve w)
-	}
-	=
+	% \phiC\args{
+	% 	\min_{\ve{w}\in C}
+	% 	\jacf(\vxK)\vdK(\ve w)
+	% }
+	% =
 	\max_{\ve{v}\in C}
 	\min_{\ve{w}\in C}
 	\mul{
@@ -1731,11 +1858,11 @@ where $(\ve{v}^*, \ve{w}^*) \in C\times C$ solve
 	}.
 \end{equation}
 
-\begin{theorem}
+\begin{proposition}
 	The directions in~\eqref{eqn:prpMO1}
 	have the sufficient decrease property~\eqref{eqn:suff_dec}
 	with $\suffDecConst=1$.
-\end{theorem}
+\end{proposition}
 
 \begin{proof}
 	The case $\kk=0$ is trivial.
@@ -1776,7 +1903,7 @@ where $(\ve{v}^*, \ve{w}^*) \in C\times C$ solve
 		}.
 	\shortintertext{
 		Plugging in~\eqref{eqn:factorialsPreemergent}
-		makes the trailing terms vanish:
+		makes the trailing terms vanish and we are left with
 	}
 	\funcXK(\vdK)
 	&\leq 
@@ -1791,30 +1918,16 @@ where $(\ve{v}^*, \ve{w}^*) \in C\times C$ solve
 
 Proving convergence for these specific directions
 requires stricter assumptions than 
-provided by~\cref{ass:monotonic_seq_bounded}.
+provided by~\cref{ass:monotonic_seq_bounded}:
 
-\begin{assumption}%
-	\label{ass:sublevelset_bounded}
-	The sublevel set
-	$$
-	\slsf = \set{
-		\vx \in \RRin: \vf(\vx) \leqK \vf(\vxZ)
-	}
-	\subseteq \RRin
-	$$
-	is bounded.
-\end{assumption}
-
-\begin{theorem}\label{thm:prpMO1convergence}
+\begin{proposition}\label{thm:prpMO1convergence}
 Suppose that~\cref{%
 ass:funcs_differentiable,%
 ass:sublevelset_bounded}
 hold.
-If the step-sizes $\szK$ satisfy
-the modified Armijo-condition~\eqref{eqn:armijo_strict},
-then the Algorithm with directions~\eqref{eqn:prpMO1}
-has a subsequence converging to a critical point.
-\end{theorem}
+The Algorithm with directions~\eqref{eqn:prpMO1}
+produces a critical sequence.
+\end{proposition}
 
 \begin{proof}
 For a proof by contradiction, assume that 
@@ -1904,7 +2017,7 @@ $\kk_0\in \NN_0$ with
 	\label{eqn:astoopSnick}
 \end{equation}
 Repeated application of~\eqref{eqn:astoopSnick}
-leads to a geometric sum:
+leads to a geometric sum (for $\kk\ge \kk_0$):
 \begin{align*}
 	\norm{\vdK}
 	&\leq
@@ -1956,6 +2069,7 @@ $$
 	\norm{\vd\iter{\kk_0}}
 } =: \Const_{\vd}.
 $$
+\Cref{thm:dirsBoundedConvergence} finally gives convergence.
 \end{proof}
 
 % \begin{lemma}%
@@ -1995,7 +2109,7 @@ $$
 % 	$$
 % \end{proof}
 
-% \begin{theorem}	
+% \begin{proposition}	
 % Suppose that~\cref{%
 % ass:funcs_differentiable,%
 % ass:monotonic_seq_bounded%
@@ -2005,7 +2119,7 @@ $$
 % the modified Armijo-condition~\eqref{eqn:armijo_strict},
 % then the Algorithm with directions~\eqref{eqn:prpMO1}
 % has a subsequence converging to a critical point.
-% \end{theorem}
+% \end{proposition}
 
 % \begin{proof}
 % For a proof by contradiction, assume that 
@@ -2054,7 +2168,6 @@ $$
 To ensure sufficient decrease,~\citet{chengTwoTermPRPBasedDescent2007}
 simply project the residual term in a standard two-term \ac{prp}
 scheme onto the null space of $\gradf(\vxK)$.
-
 With multiple gradients, there usually is no single orthogonal
 space for all of them.
 However, the (convex) cone of non-ascent directions
@@ -2064,7 +2177,7 @@ $$
 	\in -\Kone
 }
 $$
-is polar to the gradient cone $\transp{\jacf(\vx)}\Kone$
+is polar to the gradient cone $\transp{\jacf(\vx)}\dualKone$
 and provides a suitable generalization.
 Note, that the properties of $\phiC$ characterize $\dCone$ via
 $$
@@ -2198,11 +2311,11 @@ the polar cone of $\dCone(\vxK)$ and $\ve{\bar{d}}\KK = \vZ$
 is the projection onto $\dCone(\vxK)$.
 \end{remark*}
 
-\begin{theorem}
+\begin{proposition}
 The directions in~\eqref{eqn:prpMOProj} have the 
 sufficient decrease property~\eqref{eqn:suff_dec}
 with $\suffDecConst = 1$.
-\end{theorem}
+\end{proposition}
 \begin{proof}
 For $\kk=0$ the property is trivially satisfied.
 Let $\kk\geq 1$.
@@ -2220,7 +2333,7 @@ As $\ve{\bar{d}}\KK$ is a projection onto $M\KK\subseteq \dCone(\vxK)$,
 \end{align*}
 \end{proof}
 
-\begin{theorem}
+\begin{proposition}
 	Suppose~\cref{%
 	ass:funcs_differentiable,%
 	ass:monotonic_seq_bounded}
@@ -2229,7 +2342,7 @@ As $\ve{\bar{d}}\KK$ is a projection onto $M\KK\subseteq \dCone(\vxK)$,
 	Then the Algorithm with modified Armijo-stepsizes
 	according to~\eqref{eqn:armijo_strict} and with directions defined
 	by~\eqref{eqn:prpMOProj} generates a critical subsequence.
-\end{theorem}
+\end{proposition}
 
 \begin{proof}
 	First, note that the projection onto a convex set is non-expansive.
@@ -2259,7 +2372,7 @@ As $\ve{\bar{d}}\KK$ is a projection onto $M\KK\subseteq \dCone(\vxK)$,
 	Suppose first that $\funcXKp(\sdK) \geq \funcXK(\sdK)$.
 	Then
 	\begin{align*}
-	\norm{\funcXKp(\sdK) - \funcXK(\sdK)}
+	\left|\funcXKp(\sdK) - \funcXK(\sdK)\right|
 	&=
 	{\funcXKp(\sdK) - \funcXK(\sdK)}
 	\leq
@@ -2271,7 +2384,7 @@ As $\ve{\bar{d}}\KK$ is a projection onto $M\KK\subseteq \dCone(\vxK)$,
 	\Const_C \lipConstf \szKp \norm{\vdKp}\norm{\sdK},
 	\end{align*}
 	where the existence of $\Const_C>0$ follows from the 
-	compactness of $\Const_C$.
+	compactness of $C$.
 	We find the same bound for the case $\funcXKp(\sdK) < \funcXK(\sdK)$.
 	Looking at the definition~\eqref{eqn:tarnishesBandeaux}, 
 	we see that there must be a constant $\Const_\beta > 0$ with
@@ -2321,8 +2434,17 @@ As $\ve{\bar{d}}\KK$ is a projection onto $M\KK\subseteq \dCone(\vxK)$,
 			\critBound
 		}<\mathtt{r}$
 	for some $r\in (0,1)$ and all $\kk>\kk_0$.
-	Analogous to the proof of~\cref{thm:prpMO1convergence},
-	we can recurse~\eqref{eqn:pardiSubvocalisation} to deduce that $\frac{\norm{\vdK}}{\norm{\sdK}^2}$
+	Analogous to what is done in the proof of~\cref{thm:prpMO1convergence},
+	we can recurse
+	$$
+	\frac{\norm{\vdK}}{\norm{\sdK}^2}
+	\leq
+	\frac{1}{\critBound}
+	+
+	r
+	\frac{\norm{\vdKp}}{\norm{\sdKp}^2}
+	$$ 
+	to deduce that $\frac{\norm{\vdK}}{\norm{\sdK}^2}$
 	is uniformly bounded above for all $\kk\in\NN_0$,
 	e.g., by $\mathtt A > 0$.
 	Then
