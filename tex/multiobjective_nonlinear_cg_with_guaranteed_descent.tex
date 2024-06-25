@@ -1077,7 +1077,7 @@ Hence, our list is by no means complete, and there are many more approaches to e
 \subsection{Two Flavors of Fletcher-Reeves}
 We will show two variants, derived from 
 the single-objective scheme in~\cite{zhangGlobalConvergenceModified2006}.
-The directions $\vdK$ are inspired by the
+The single-objective directions $\vdK$ are inspired by the
 classical \ac{fr} recipe and given by
 \begin{equation}
 	\vdK = 
@@ -1099,7 +1099,7 @@ classical \ac{fr} recipe and given by
 	\theta\kK
 	:=
 	\frac{
-		\mul{\vdK}{\ve{g}\KK - \ve{g}\KKp}
+		\mul{\vdKp}{\ve{g}\KK - \ve{g}\KKp}
 		}{
 			\norm{\ve{g}\KK}^2
 		},
@@ -1111,8 +1111,9 @@ where $\ve{g}\KK = \gradf(\vxK)$.
 \subsubsection*{FR Restart Variant}
 Unfortunately, simply replacing $-\ve{g}\KK$ 
 with the multi-objective steepest descent direction
-$\sdK$ from~\eqref{eqn:sd_problem} and modifying 
-the product in $\theta\kK$ as per
+$\sdK$ from~\eqref{eqn:sd_problem} and naively modifying 
+$\theta\kK$ does not work.
+For example, these definitions,
 \begin{equation}
 	\tilde{\beta}\kK 
 	= 
@@ -1123,22 +1124,61 @@ the product in $\theta\kK$ as per
 	}
 	=
 	\frac{\funcXK(\sdK)}{\funcXKp(\sd\KKp)},
-	\quad
+	\;
 	\tilde{\theta}\kK
 	=
 	\frac{
+		\funcXK(\vd\KKp)
+		%-
+		%\mul{\sdK}{\vdKp}
+		-
 		\funcXKp(\vd\KKp)
+	}{
+		\norm{\sd\KKp}^2
+	}
+	=
+	\frac{
+		\funcXKp(\vd\KKp)
+		%\mul{\sdK}{\vdKp}
+		%+
 		-
 		\funcXK(\vd\KKp)
 	}{
-		\funcXKp(\sd\KKp)
+		\funcXKp(\sdKp)
 	}
 	\label{eqn:hyposulphurousTontiners}
 \end{equation}
-does not suffice to show the sufficient decrease property~\eqref{eqn:suff_dec}.
+do not suffice to show the sufficient decrease property~\eqref{eqn:suff_dec}.
 $\tilde{\theta}\kK$ might become negative (and this actually happens in practice).
-A negative coefficient can be avoided with standard Wolfe conditions.
-Or with restarts, as in the following definition:
+A negative coefficient can be avoided with Wolfe conditions.
+Supposing $k \geq 1$ and $\vdKp$ is a descent-direction at $\vxKp$,
+this direction satisfies the strong Wolfe conditions for 
+$\WolfeConstant \in (0,1)$ iff
+\begin{equation*}
+	\abs{\funcXK(\vdKp)}
+	\leq
+	\WolfeConstant \abs{\funcXKp(\vdKp)}
+	=
+	-\WolfeConstant\funcXKp(\vdKp)
+\end{equation*}
+However, we do not enforce (strong) Wolfe conditions during line-search,
+but simply perform restarts if they are not satisfied.
+More specifically, we test for a modified version of the Wolfe conditions, 
+that reads
+\begin{equation}
+	\max\set{
+		\abs{\funcXK(\vdKp)},
+		\abs{\mul{\sdK}{\vdKp}}
+	}
+	\leq
+	%\WolfeConstant \abs{\funcXKp(\vdKp)}
+	%=
+	-\WolfeConstant\funcXKp(\vdKp).
+	\tag{SW}
+	\label{eqn:yeuksOutscreams}
+\end{equation}
+
+The restart directions are then defined by
 \begin{equation}
 	\vdK
 	=
@@ -1154,12 +1194,12 @@ Or with restarts, as in the following definition:
 	= 
 	\begin{cases}	
 		(\tilde\theta\kK, \tilde\beta\kK)
-		&\text{if $\tilde\theta\kK < 0$,}
+		&\text{if $\vdKp$ satisfies \eqref{eqn:yeuksOutscreams},}
 		\\
 		(1, 0)
 		&\text{else.}
 	\end{cases}
-	\tag{FR~MOI}
+	\tag{FR~MO~I}
 	\label{eqn:frMO1}
 \end{equation}
 
@@ -1170,10 +1210,37 @@ Or with restarts, as in the following definition:
 \end{proposition}
 
 \begin{proof}
-	For $\kk=0$ or $\tilde\theta\kK < 0$ there is nothing
-	to show.
-	Assume $\kk \geq 1$ and $\tilde\theta\kK \geq 0$.
-	Let $\ve{w}\in C$.
+	For $\kk=0$ there is nothing to show.
+	We do a proof by induction to show the general case.
+
+	Let $\kk \geq 1$.
+	For $(\theta\kK, \beta\kK) = (1,0)$ the property also holds 
+	trivially.
+	Assume thus that \eqref{eqn:yeuksOutscreams} is satisfied
+	for $\kk$.
+	
+	Then $\theta\kK$ is non-negative:
+	By induction, we have $\funcXKp(\vdKp) \leq 0$ and the strong Wolfe 
+	conditions thus imply the standard Wolfe conditions
+	$$
+	\funcXK(\vdKp) \geq \WolfeConstant \funcXKp(\vdKp).
+	$$
+	We obtain
+	\begin{equation*}
+		\theta\kK\norm{\sdKp}^2 
+		=
+		\funcXK(\vd\KKp)
+		-
+		\funcXKp(\vd\KKp)
+		\geq
+		\underbrace{(\WolfeConstant - 1)}_{< 0}
+		\underbrace{\funcXKp(\vdKp)}_{\leq 0}
+		\geq
+		0.
+	\end{equation*}	
+
+	Now take any $\ve{w}\in C$ and use the fact that 
+	$\theta\kK$ and $\beta\kK$ are non-negative:
 	\begin{align*}
 		\mul{
 			\ve w
@@ -1209,13 +1276,15 @@ Or with restarts, as in the following definition:
 		% }{\funcXK(\sd\KKp)}
 		% \\
 		% &=
-		\funcXK(\sdK)
 		\frac{
+		\funcXK(\sdK)
+		\args{
 			\funcXKp(\vd\KKp)
-			\cancel{
-			-\funcXK(\vd\KKp)
-			+\funcXK(\vd\KKp)
-			}
+			-
+			\funcXK(\vd\KKp)
+			+
+			\funcXK(\vd\KKp)
+		}
 		}{\funcXKp(\sd\KKp)}
 		\\
 		&=
@@ -1235,7 +1304,7 @@ Or with restarts, as in the following definition:
 	\leq
 	\funcXK(\sdK)
 	\;\forall \ve{w}\in C
-	\quad\Leftrightarrow\quad
+	\quad\Rightarrow\quad
 	\funcXK(\vdK) \leq \funcXK(\sdK).
 	$$
 \end{proof}
@@ -1254,6 +1323,58 @@ We now show that the directions also fit~\cref{thm:convergence}.
 \end{proposition}
 
 \begin{proof}
+	% As shown in~\cite{granadrummondSteepestDescentMethod2005},
+	% the steepest descent direction is a weighted
+	% sum of gradients.
+	% More precisely, let $\tilde C = \conv(C)$, then 
+	% $$
+	% \sdK =
+	% - \transp{\jacf(\vxK)}\ve{w}^*
+	% \quad\text{with}\quad
+	% \ve{w}^* = 
+	% \argmin_{\ve w\in \tilde C}
+	% \norm{\transp{\jacf(\vxK)}\ve{w}}^2.
+	% $$
+	% Thus, for any vector $\vd \in \RRin$,
+	% \begin{align*}
+	% \mul{\vd}{\sdK}
+	% %&
+	% =
+	% -\mul{\vd}{\transp{\jacf(\vxK)}\ve{w}^*}
+	% %\\
+	% %&
+	% \geq
+	% \min_{\ve w \in C}
+	% -\mul{\vd}{\jacf(\vxK)\ve w}
+	% =
+	% -
+	% \max_{\ve w \in C}
+	% \mul{\vd}{\transp{\jacf(\vxK)\ve w}}
+	% =
+	% - \funcXK(\vd),
+	% \end{align*}
+	% where we have used the fact that it does not matter
+	% whether we compute $\funcXK$ over $C$ or $\tilde C$.
+	% Hence, by reversing the signs in this inequality, 
+	% \begin{equation}
+	% -\mul{\sdK}{\vdKp}
+	% \leq
+	% \funcXK(\vdKp)
+	% \label{eqn:customizeGarrons}
+	% \end{equation}
+	% and
+	% especially, we get
+	% $$
+	% \funcXK(\vdKp) 
+	% - 
+	% \mul{\vdKp}{\sdK}
+	% \leq 
+	% 2 \funcXK(\vdKp)
+	% \leq
+	% 2 \abs{\funcXK(\vdKp)}
+	% .
+	% $$
+
 	Denote by $\mathcal P\subseteq \NN_0$ those iteration
 	indices for which $\tilde{\theta}\kK \geq 0$ and 
 	by $\mathcal N\subseteq \NN_0$ the indices with 
@@ -1315,7 +1436,7 @@ We now show that the directions also fit~\cref{thm:convergence}.
 		+ 
 		\beta\kK \mul{\sdK}{\vdKp},
 		\nonumber
-		\shortintertext{resulting in}
+		\shortintertext{giving}
 		\norm{\vdK}^2
 		&= 
 		\beta\kK^2
@@ -1328,71 +1449,83 @@ We now show that the directions also fit~\cref{thm:convergence}.
 		\mul{\sdK}{\vdK}.
 		\label{eqn:ethylsBabyproofed}
 	\end{align}
-	As shown in~\cite{granadrummondSteepestDescentMethod2005},
-	the steepest descent direction is a weighted
-	sum of gradients.
-	More precisely, let $\tilde C = \conv(C)$, then 
-	$$
-	\sdK =
-	- \transp{\jacf(\vxK)}\ve{w}^*
-	\quad\text{with}\quad
-	\ve{w}^* = 
-	\argmin_{\ve w\in \tilde C}
-	\norm{\transp{\jacf(\vxK)}\ve{w}}^2.
-	$$
-	Thus,
+	
+		Let us take another look at $\mul{\sdK}{\vdK}$ and use this inequality:
 	\begin{align*}
-	\mul{\vdK}{\sdK}
-	&=
-	-\mul{\vdK}{\transp{\jacf(\vxK)}\ve{w}^*}
-	\\
-	&\geq
-	\min_{\ve w \in C}
-	-\mul{\vdK}{\jacf(\vxK)\ve w}
-	=
-	-
-	\max_{\ve w \in C}
-	\mul{\vdK}{\transp{\jacf(\vxK)\ve w}}
-	=
-	- \funcXK(\vdK)
-	\\
-	&\geq
-	-
-	\funcXK(\sdK)
-	\geq 0,
+		\mul{\sdK}{\vdK}
+		&= 
+		\theta\kK
+		\norm{\sdK}^2
+		+ 
+		\beta\kK \mul{\sdK}{\vdKp}
+		\\
+		&=
+		\frac{\norm{\sdK}^2}{\norm{\sdKp}^2}
+		\args{
+			\funcXK(\vdKp) - \funcXKp(\vdKp) + \mul{\sdK}{\vdKp}
+		}
+		\\
+		&\leq
+		\frac{\norm{\sdK}^2}{\norm{\sdKp}^2}
+		\args{
+			2\max\set{
+				\abs{\funcXK(\vdKp)},
+				\abs{\mul{\sdK}{\vdKp}}
+			}
+			- \funcXKp(\vdKp)
+		}
+		\\
+		&\stackrel{\eqref{eqn:yeuksOutscreams}}\leq
+		\frac{\norm{\sdK}^2}{\norm{\sdKp}^2}
+		\args{
+			-(1+2\WolfeConstant)\funcXKp(\vdKp)
+		}
+		\\
+		&=
+		\norm{\sdK}^2 
+		\frac{
+			(1+2\WolfeConstant)\funcXKp(\vdKp)
+			}{
+			\funcXKp(\sdKp)
+		},
+		&\text{for $\kk > \kk_0$.}
 	\end{align*}
-	where we have used the fact that it does not matter
-	whether we compute $\funcXK$ over $C$ or $\tilde C$,
-	and lastly the sufficient decrease property of $\vdK$ with constant 1.
-	It follows that
-	\begin{equation}
-		\frac{
-			2 \theta\kK 
-			\mul{\sdK}{\vdK}
-		}{
-			\norm{\sdK}^4
-		}
-		=
-		\frac{
-			2 \theta\kK 
-			\mul{\sdK}{\vdK}
-		}{
-			(-\funcXK(\sdK))
-			(-\funcXK(\sdK))
-		}
-		\leq
-		\frac{
-			2 \theta\kK 
-			\mul{\sdK}{\vdK}
-		}{
-			\mul{\sdK}{\vdK}
-			(-\funcXK(\sdK))
-		}
-		= 
-		\frac{2\theta\kK}{\norm{\sdK}^2}
-		.
-		\label{eqn:commentatorSasarara}
+	Because of the sufficient decrease property, $\funcXKp(\vdKp) \leq \funcXKp(\sdKp)$, and
+	$\WolfeConstant \in (0,1)$, we obtain
+	\begin{equation}	
+		\mul{\sdK}{\vdK} \leq 3 \norm{\sdK}^2.
+	\label{eqn:changelingsPedreroes}
 	\end{equation}
+	%and lastly the sufficient decrease property of $\vdK$ with constant 1.
+	% It follows that
+	% \begin{equation}
+	% 	\frac{
+	% 		2 \theta\kK 
+	% 		\mul{\sdK}{\vdK}
+	% 	}{
+	% 		\norm{\sdK}^4
+	% 	}
+	% 	=
+	% 	\frac{
+	% 		2 \theta\kK 
+	% 		\mul{\sdK}{\vdK}
+	% 	}{
+	% 		(-\funcXK(\sdK))
+	% 		(-\funcXK(\sdK))
+	% 	}
+	% 	\leq
+	% 	\frac{
+	% 		2 \theta\kK 
+	% 		\mul{\sdK}{\vdK}
+	% 	}{
+	% 		\mul{\sdK}{\vdK}
+	% 		(-\funcXK(\sdK))
+	% 	}
+	% 	= 
+	% 	\frac{2\theta\kK}{\norm{\sdK}^2}
+	% 	.
+	% 	\label{eqn:commentatorSasarara}
+	% \end{equation}
 	Combining this with~\eqref{eqn:ethylsBabyproofed} gives
 	\begin{align}
 		\frac{
@@ -1420,7 +1553,7 @@ We now show that the directions also fit~\cref{thm:convergence}.
 		}
 		\nonumber
 		\\
-		&\stackrel{\eqref{eqn:commentatorSasarara}}\leq
+		&\stackrel{\eqref{eqn:changelingsPedreroes}}\leq
 		\frac{
 			\beta\kK^2\norm{\vdKp}^2
 		}{
@@ -1428,7 +1561,27 @@ We now show that the directions also fit~\cref{thm:convergence}.
 		}
 		-
 		\frac{
-			\theta\kK^2 - 2 \theta\kK
+			\theta\kK^2 \norm{\sdK}^2
+		}{
+			\norm{\sdK}^4
+		}
+		+
+		\frac{
+		6\theta\kK \norm{\sdK}^2
+		}
+		{\norm{\sdK}^4
+		}
+		\nonumber
+		\\
+		&=
+		\frac{
+			\beta\kK^2\norm{\vdKp}^2
+		}{
+			\norm{\sdK}^4
+		}
+		-
+		\frac{
+			\theta\kK^2 - 6 \theta\kK
 		}{
 			\norm{\sdK}^2
 		}
@@ -1442,12 +1595,12 @@ We now show that the directions also fit~\cref{thm:convergence}.
 		}
 		-
 		\frac{
-			(\theta\kK -1)^2
+			(\theta\kK -3 )^2
 		}{
 			\norm{\sdK}^2
 		}
 		+
-		\frac{1}{\norm{\sdK}^2}
+		\frac{9}{\norm{\sdK}^2}
 		\nonumber
 		\\
 		&\leq
@@ -1457,7 +1610,7 @@ We now show that the directions also fit~\cref{thm:convergence}.
 			\norm{\sdK}^4
 		}
 		+
-		\frac{1}{\norm{\sdK}^2}.
+		\frac{9}{\norm{\sdK}^2}.
 		\label{eqn:recalcitratedLinearly}
 	\end{align}
 	In particular, for $\kk > \kk_0$, with
@@ -1467,10 +1620,10 @@ We now show that the directions also fit~\cref{thm:convergence}.
 	\frac{\norm{\vdK}^2}{\norm{\sdK}^4}
 	\leq
 	\frac{\norm{\vdKp}^2}{\norm{\sdKp}^4}
-	+ \frac{1}{\norm{\sdK}^2}
+	+ \frac{9}{\norm{\sdK}^2}
 	\leq
 	\frac{\norm{\vdKp}^2}{\norm{\sdKp}^4}
-	+ \frac{1}{\critBound^2}.
+	+ \frac{9}{\critBound^2}.
 	$$
 	Recursion gives
 	$$
@@ -1479,13 +1632,16 @@ We now show that the directions also fit~\cref{thm:convergence}.
 	\frac{\norm{\vd\iter{\kk_0}}^2}{\norm{\sd\iter{\kk_0}}^4}
 	+
 	\sum_{i=\kk_0 + 1}^k
-	\frac{1}{\critBound^2}
+	\frac{9}{\critBound^2}
 	=:
 	\Const_0
 	+
-	\frac{\kk - \kk_0}{\critBound^2}
+	\frac{9(\kk - \kk_0)}{\critBound^2}
 	=
-	\frac{(\Const_0 \critBound^2 - \kk_0) + \kk}{\critBound^2}.
+	9 \frac{
+		\args{\frac{\Const_0 \critBound^2}{9} - \kk_0} + \kk
+	}{
+		\critBound^2}.
 	$$
 	Summation of the reciprocals results in a 
 	divergent sum (because the harmonic series diverges):
@@ -1493,11 +1649,12 @@ We now show that the directions also fit~\cref{thm:convergence}.
 	\sum_{\kk>\kk_0}
 	\frac{\norm{\sdK}^4}{\norm{\vdK}^2}
 	\geq 
+	\frac{1}{9}
 	\sum_{\kk>\kk_0}
 	\frac{
 		\critBound^2
 		}{
-		(\Const_0 \critBound^2 - \kk_0) + \kk
+		\args{\frac{\Const_0 \critBound^2}{9} - \kk_0} + \kk
 	}
 	= \infty.
 	$$
@@ -1505,6 +1662,475 @@ We now show that the directions also fit~\cref{thm:convergence}.
 	This concludes the proof, as~\cref{thm:convergence} applies.
 \end{proof}
 
+\subsection{FR Fractional-Linear Programming Variant}
+\newcommand*{\constFR}{\mathtt{c}_{\text{FR}}}
+The single-objective directions have the nice property that 
+$\mul{\sdK}{\vdK} \leq \norm{\sdK}^2$ (in fact, equality holds).
+This gives both: The guaranteed descent and divergence of the series 
+in~\cref{thm:armijoZoutendijk}.
+If we simply replace $\ve g\KK$ with $-\sdK$, then we also obtain 
+$\mul{\sdK}{\vdK} = \norm{\sdK}^2$.
+But the descent property looks different in the multi-objective case, 
+so instead we define
+\begin{align*}
+\theta(\ve w)
+&:= 
+\frac{
+	% -\mul{\sdKp}{\vdKp} +
+	\mul{\ve w}{\ve D\KK \vdKp}
+	-
+	\mul{\ve w}{\ve D\KKp \vdKp}
+	-(\constFR - 1)
+	\mul{\ve w}{\ve D\KKp \sdKp}
+}{
+	-\constFR
+	%\norm{\sdKp}^2
+	\mul{\ve w}{\ve D\KKp \sdKp}
+}
+&\text{and}
+\\
+\beta(\ve w)
+&:=
+\frac{
+	-\mul{\ve w}{\ve D\KK \sdK}
+}{
+	-\constFR 
+	%\norm{\sdKp}^2
+	\mul{\ve w}{\ve D\KKp \sdKp}
+},
+\end{align*}
+with $\ve D\KK = \gradf(\vxK)$ and a constant $\constFR > 1$.
+We then take $\ve w^*$
+(neglecting an iteration index for the sake of readability) solving
+\begin{equation}
+% \min_{\ve v\in C}\min_{\ve w \in C}
+% \mul{\ve w}{\ve D\KK \vdKp} 
+% \mul{\ve v}{\ve D\KK \sdK}
+% - 
+% \mul{\ve w}{\ve D\KK \sdK}
+% \mul{\ve v}{\ve D\KK \vdKp}
+% =
+% \min_{\ve v\in C}\min_{\ve w \in C}
+% \psi(\ve w, \ve v)
+\min_{\ve w\in C}
+\frac{
+	\mul{\ve w}{\ve D\KK \vdKp}
+}{
+	\mul{\ve w}{\ve D\KK \sdK}
+}
+\label{eqn:gressingDocile}
+\end{equation}
+to define
+\begin{equation}
+	\vdK =
+	\begin{cases}
+		\sdK
+		&\text{if $\kk=0$},
+		\\
+		\theta\kK(\ve w^*)
+			\sdK
+			+
+			\beta\kK(\ve w^*)
+			\vdKp
+		&\text{if $\kk \geq 1$.}
+	\end{cases}
+	\tag{FR~MO~II}
+	\label{eqn:frMO2}
+\end{equation}
+\begin{remark*}
+	This coefficient looks nicer and also works:
+	$$
+	\theta(\ve w)
+		:= 
+		\frac{
+			% -\mul{\sdKp}{\vdKp} +
+			\mul{\ve w}{\ve D\KK \vdKp}
+			-
+			\constFR\mul{\ve w}{\ve D\KKp \vdKp}
+		}{
+			-\constFR
+			%\norm{\sdKp}^2
+			\mul{\ve w}{\ve D\KKp \sdKp}
+		}
+	$$
+\end{remark*}
+If $C$ is discrete, \eqref{eqn:gressingDocile} can be solved with a simple for-loop.
+Otherwise, it is a fractional-linear program and can be transformed to an LP.
+By noting that $\mul{\ve v}{\ve D\KK\sdK}\leq 0$ for all $\ve v \in C$ (including $\ve w^*$),
+we see from the minimizing property 
+$$
+\frac{
+	\mul{\ve w^*}{\ve D\KK \vdKp}
+}{
+	\mul{\ve w^*}{\ve D\KK \sdK}
+}
+\leq
+\frac{
+	\mul{\ve v}{\ve D\KK \vdKp}
+}{
+	\mul{\ve v}{\ve D\KK \sdK}
+}
+$$
+that
+$$
+\frac{
+	\mul{\ve w^*}{\ve D\KK \vdKp}
+}{
+	\mul{\ve w^*}{\ve D\KK \sdK}
+}
+	\mul{\ve v}{\ve D\KK \sdK}
+\geq
+	\mul{\ve v}{\ve D\KK \vdKp}
+$$
+and
+\begin{equation}
+	\mul{\ve w^*}{\ve D\KK \vdKp}
+	\mul{\ve v}{\ve D\KK \sdK}
+\leq
+	\mul{\ve v}{\ve D\KK \vdKp}
+	\mul{\ve w^*}{\ve D\KK \sdK}
+\quad\text{for all $\ve v \in C.$}
+\label{eqn:crozersFilfot}
+\end{equation}
+
+We first use this to show sufficient decrease:
+\begin{proposition}
+	%If\cref{ass:funcs_differentiable,ass:sublevelset_bounded} hold,
+	%then 
+	The directions in~\eqref{eqn:frMO2} have the 
+	sufficient decrease property~\eqref{eqn:suff_dec}.
+	%with some constant $\suffDecConst > 0$.
+	% Moreover, it holds that 
+	% $$
+	% \mul{\sdK}{\vdK} \leq \norm{\sdK}^2 \qquad \forall \kk\in\mathbb N_0.
+	% $$
+\end{proposition}
+
+\begin{proof}
+	Again, the proof is by induction and we show that
+	$$
+	\mul{\ve v}{\ve D\KK \vdK}
+	\leq
+	\mul{\ve v}{\ve D\KK \sdK} \leq 0
+	\qquad\forall \kk \geq 0,
+	$$
+	which implies the sufficient decrease property.
+	The case $\kk = 0$ is trivial.
+	Let $\kk \geq 1$ and let $\ve v \in C$. 
+	Equation~\eqref{eqn:crozersFilfot} shows that
+	$$
+	\psi(\ve w^*, \ve v)
+	:=
+	\mul{\ve w^*}{\ve D\KK \vdKp}
+	\mul{\ve v}{\ve D\KK \sdK}
+	-
+	\mul{\ve v}{\ve D\KK \vdKp}
+	\mul{\ve w^*}{\ve D\KK \sdK}
+	\leq 0.
+	$$
+	Using the definition~\eqref{eqn:frMO2} we get
+	\begin{align*}
+		\mul{\ve v}{\ve D\KK \vdK}
+		&=
+		\frac{
+			\left(
+				-
+					\constFR \mul{\ve w^*}{\ve D\KKp \vdKp}
+				-
+					(\constFR-1) \mul{\ve w^*}{\ve D\KKp \sdKp}
+			\right)
+				\mul{\ve v }{\ve D\KK \sdK}
+				+	
+					\psi(\ve w^*, \ve v)
+		}{
+			%\constFR \norm{\sdKp}^2
+			-\constFR \mul{\ve w^*}{\ve D\KKp \sdKp}
+		}
+		\\
+		&\stackrel{\eqref{eqn:crozersFilfot}}
+		\leq 
+		\frac{
+			\mul{\ve w^*}{\ve D\KKp \vdKp}
+			\mul{\ve v }{\ve D\KK \sdK}
+		}{
+			%\constFR \norm{\sdKp}^2
+			\mul{\ve w^*}{\ve D\KKp \sdKp}
+		}
+		+
+		\frac{c-1}{c}
+		\frac{
+			\mul{\ve w^*}{\ve D\KKp \sdKp}
+			\mul{\ve v }{\ve D\KK \sdK}
+		}{
+			%\constFR \norm{\sdKp}^2
+			\constFR \mul{\ve w^*}{\ve D\KKp \sdKp}
+		}
+		\\
+		&=
+		\frac{
+			\mul{\ve w^*}{\ve D\KKp \vdKp}
+			\mul{\ve v }{\ve D\KK \sdK}
+		}{
+			%\constFR \norm{\sdKp}^2
+			\mul{\ve w^*}{\ve D\KKp \sdKp}
+		}
+		+
+		\left(1 - \frac{1}{c}\right)
+			\mul{\ve v }{\ve D\KK \sdK}
+		.
+	\end{align*}
+	Because of 
+	$$0 \leq 
+	\frac{\mul{\ve v}{\ve D\KK\sdK}}{\constFR \mul{\ve w^*}{\ve D\KKp \sdKp}},$$
+	we can use the induction hypothesis 
+	$$
+	\mul{\ve w^*}{\ve D\KKp \vdKp}
+	\leq
+	\mul{\ve w^*}{\ve D\KKp \sdKp}
+	$$
+	to finally get
+	$$
+	\mul{\ve v}{\ve D\KK \vdK}
+	\leq
+		\left(
+			\frac{1}{\constFR} + 1 -\frac{1}{\constFR}
+		\right)
+		\mul{\ve v }{\ve D\KK \sdK}
+	=
+		\mul{\ve v }{\ve D\KK \sdK} \leq 0.
+	$$
+\end{proof}
+
+\begin{proposition}\label{thm:frMO2Convergence}
+Suppose that~\cref{%
+ass:funcs_differentiable,%
+ass:sublevelset_bounded}
+hold.
+The Algorithm with directions~\eqref{eqn:frMO2}
+produces a critical sequence.
+\end{proposition}
+
+\begin{proof}
+	For a proof by contradiction, assume that the criticality is bounded like in~\eqref{eqn:critBoundedBelow}.
+	We use the triangle inequality and Cauchy-Schwarz on~\eqref{eqn:frMO2}
+	to get
+	\begin{align*}
+		\norm{\vdK}
+			&\leq
+			\abs{\theta\kK}
+			\norm{\sdK}
+			+
+			\abs{\beta\kK}
+			\norm{\vdKp}
+			.
+	\end{align*}
+	We first investigate $\abs{\theta\kK}\norm{\sdK}$:
+	\begin{align}
+	\abs{\theta\kK}\norm{\sdK}	
+	&\leq 
+		\abs{
+			\frac{
+				\mul{\ve w^*}{\ve D\KK \vdKp}
+				-
+				\mul{\ve w^*}{\ve D\KKp \vdKp}
+				-
+				(\constFR-1)
+				\mul{\ve w^*}{\ve D\KKp \sdKp}
+			}{
+				-\constFR
+				\mul{\ve w^*}{\ve D\KKp \sdKp}
+			}
+		}
+		\norm{\sdK}
+	\nonumber
+	\\
+	&\leq
+		\frac{
+			\norm{\ve w^*}
+			\norm{\ve D\KK - \ve D\KKp}
+			\norm{\vdKp}
+			\norm{\sdKp}
+			\norm{\sdK}
+			}{
+				\constFR
+				\mul{\ve w^*}{\ve D\KKp \sdKp}
+			}
+		+
+		\frac{\constFR - 1}{\constFR}\norm{\sdK}
+	\nonumber
+	\\
+	&\leq
+	\frac{
+		\args{\sup_{\ve w\in C} \norm{\ve w}}
+		\lipConstf \norm{\vxK - \vxKp}\norm{\vdKp}
+		\args{\sup_{\kk \geq 0} \norm{\sdKp}}^2
+		}{
+			\constFR \critBound^2
+	}
+	+
+		\frac{\constFR - 1}{\constFR}\sup_{\kk \geq 0} \norm{\sdKp}
+	\nonumber
+	\\
+	&\leq
+	\mathtt C_1
+	\norm{\szKp \vdKp}
+	\norm{\vdKp}
+	+
+	\mathtt C_2
+	\label{eqn:huhusScabbards}
+	\end{align}
+	for some constants $\mathtt C_1, \mathtt C_2 > 0$, which we have derived using 
+	the boundedness of $C$ and the sublevelset (\cref{ass:sublevelset_bounded}).
+	
+	To bound $\abs{\beta\kK}\norm{\vdKp}$, we note that
+	because of the assumptions and~\cite{svaiterMultiobjectiveSteepestDescent2018},
+	we know the steepest descent direction to be $\holderConst$-Hölder
+	continuous:
+	$$
+	\norm{\sdK - \sdKp}
+	=
+	\norm{\sd\KKp - \sdK}
+	\leq
+	\holderConst
+	\norm{\vx\KKp - \vxK}^\frac{1}{2}
+	=
+	\holderConst
+	\norm{\sz\KKp\vd\KKp}^\frac{1}{2}.
+	$$
+	\todo{Hölder-continuity is show in~\cite{svaiterMultiobjectiveSteepestDescent2018}
+	for the case $\Kone=\RRin$.
+	Should work for other cones as well, but better check!}
+	Now 
+	\begin{align*}
+	&\hspace{-1cm}\abs{\mul{\ve w^*}{\ve D\KK\sdK}}
+	-
+	\abs{\mul{\ve w^*}{\ve D\KKp \sdKp}}
+	\leq
+	\abs{
+	\mul{\ve w^*}{\ve D\KK\sdK}
+	-
+	\mul{\ve w^*}{\ve D\KKp\sdKp}
+	}
+	\\
+	&\leq
+	\abs{
+		\mul{\ve w^*}{\ve D\KK\sdK}
+		-
+		\mul{\ve w^*}{\ve D\KKp\sdK}
+		+
+		\mul{\ve w^*}{\ve D\KKp\sdK}
+		-
+		\mul{\ve w^*}{\ve D\KKp\sdKp}
+	}
+	\\
+	&\leq
+	\abs{
+		\mul{\ve w^*}{\ve D\KK\sdK}
+		-
+		\mul{\ve w^*}{\ve D\KKp\sdK}
+	}
+	+
+	\abs{
+		\mul{\ve w^*}{\ve D\KKp\sdK}
+		-
+		\mul{\ve w^*}{\ve D\KKp\sdKp}
+	}
+	\\
+	&\leq
+	L_1 \norm{\szKp \vdKp}
+	+ 
+	H_1 \norm{\szKp \vdKp}^{\frac{1}{2}}.
+	\end{align*}
+	The constant $L_1>0$ follows from the Lipschitz-continuity of the Jacobian and the boundedness
+	of $C$ and the sublevelset, the constant $H_1>0$ is derived from the Hölder-continuity
+	of the steepest descent direction.
+	It follows that
+	$$
+	\abs{\mul{\ve w^*}{\ve D\KK\sdK}}
+	\leq
+	L_1 \norm{\szKp \vdKp}
+	+ 
+	H_1 \norm{\szKp \vdKp}^{\frac{1}{2}}
+	+
+	\abs{\mul{\ve w^*}{\ve D\KKp\sdKp}}
+	$$
+	and
+	$$
+	\frac{
+		\abs{\mul{\ve w^*}{\ve D\KK\sdK}}
+	}{
+		\constFR
+		\abs{\mul{\ve w^*}{\ve D\KKp\sdKp}}
+	}
+	\leq
+	L_2 \norm{\szKp \vdKp}
+	+ 
+	H_2 \norm{\szKp \vdKp}^{\frac{1}{2}}
+	+
+	\frac{1}{\constFR}.
+	$$
+	The constants $L_2$ and $H_2$ follow from the fact that 
+	$\constFR \abs{\mul{\ve w^*}{\ve D\KKp\sdKp}}$ is bounded below by
+	$\constFR \critBound^2$.
+		
+	Because the steps vanish according to~\cref{thm:stepNorm_zero}, 
+	and because of $\constFR^{-1} \in (0,1)$,
+	there must be some $\kk_0\in \mathbb N_0$ 
+	and a constant $\varepsilon_1 \in (0,1)$
+	such that
+	$$
+	\frac{
+		\abs{\mul{\ve w^*}{\ve D\KK\sdK}}
+	}{
+		\constFR
+		\abs{\mul{\ve w^*}{\ve D\KKp\sdKp}}
+	}
+	\leq
+	L_2 \norm{\szKp \vdKp}
+	+ 
+	H_2 \norm{\szKp \vdKp}^{\frac{1}{2}}
+	+
+	\frac{1}{\constFR}
+	\leq 
+		\varepsilon_1 < 1
+		\qquad \forall \kk\geq\kk_0.
+	$$
+	That is, 
+	$$
+	\abs{\beta\kK}\norm{\vdKp}
+	\leq \varepsilon_1 \norm{\vdKp} \qquad\forall\kk\geq\kk_0.
+	$$
+
+	For~\eqref{eqn:huhusScabbards} we can make a similar argument:
+	As $\varepsilon_1 < 1$, there is some $\kk_1 \geq \kk_0$ and 
+	$\varepsilon_2>0$ with 
+	$\mathtt r = \varepsilon_1 + \varepsilon_2 < 1$
+	such that 
+	$$
+	\abs{\theta\kK}
+		\norm{\sdK}
+	\leq
+	\varepsilon_2 \norm{\vdKp} + \mathtt C_2
+	\qquad\forall \kk\geq \kk_0.
+	$$
+	Finally,
+	$$
+	\norm{\vdK}
+	\leq 
+	\abs{\theta\kK}
+	\norm{\sdK}
+	+
+	\abs{\beta\kK}\norm{\vdKp}
+	\leq
+	\mathtt r \norm{\vdKp}
+	+ \mathtt C_2
+	\quad \forall \kk \geq \kk_1.
+	$$
+	Hence, $\vdK$ is bounded (there is a proof below and I have to re-sort the whole document).
+	This concludes our proof.
+\end{proof}
+
+\bgroup\color{lightgray}
 \subsubsection*{FR MaxiMin Variant}
 The other variant based on the single-objective 
 scheme~\eqref{eqn:frSO} directly exploits
@@ -1539,31 +2165,37 @@ define the coefficients
 	\theta\kK(\ve w)
 	&:=
 	\frac{
-		\mul{\ve w}{\jacf(\vxK)\vdKp}
-		-
-		\mul{\ve w}{\jacf(\vxKp)\vdKp}
+		%\mul{\ve w}{\jacf(\vxK)\vdKp}
+		%-
+		\mul{\ve w}{
+			\args{\jacf(\vxK) - \jacf(\vxKp)}\vdKp}
 	}{
 		%\norm{\sdKp}
 		-\funcXKp(\sdKp)
 	}
-	&\text{and}
-	\\
-	\beta\kK
-	&:=
-	\frac{\norm{\sdK}^2}{\norm{\sdKp}^2}
+%	&\text{and}
+%	\\
+	\quad\text{and}\quad
+	\beta\kK(\ve w)
 	=
-	\frac{
-		- \funcXK(\sdK)
-	}{
-		- \funcXKp(\sdKp)
-	}
-	=
-	\frac{
-		- \max_{\ve w\in C}
-			\mul{\ve w}{\jacf(\vxK)\sdK}
-	}{
-		-\funcXKp(\sdKp)
-	}
+	\frac{-\mul{\ve w}{\jacf(\vxK)\sdK}}{-\funcXKp(\vdKp)}
+	% \beta\kK
+	% &:=
+	% \frac{\norm{\sdK}^2}{\norm{\sdKp}^2}
+	% =
+	% \frac{
+	% 	- \funcXK(\sdK)
+	% }{
+	% 	- \funcXKp(\sdKp)
+	% }
+	% =
+	% \frac{
+	% 	- \max_{\ve w\in C}
+	% 		\mul{\ve w}{\jacf(\vxK)\sdK}
+	% }{
+	% 	-\funcXKp(\sdKp)
+	% }
+	% 
 	.
 	\end{aligned}
 	\label{eqn:characteriserAbout}
@@ -1595,7 +2227,7 @@ and $\ve{w}^* = \ve{w}\kK^*$ to solve
 			\theta\kK(\ve w)
 			\sdK
 			+
-			\beta\kK
+			\beta\kK(\ve w)
 			\vdKp
 		}
 	}
@@ -1612,19 +2244,19 @@ The directions follow as
 		\theta\kK(\ve w^*)
 			\sdK
 			+
-			\beta\kK
+			\beta\kK(\ve w^*)
 			\vdKp
 		&\text{if $\kk \geq 1$.}
 	\end{cases}
-	\tag{FR~MOII}
-	\label{eqn:frMO2}
+	\tag{FR~MO~II}
+	%\label{eqn:frMO2}
 \end{equation}
 Note, that~\eqref{eqn:doorsAttention} can be cheaply solved if $C$ is discrete 
 (i.e., $\dualKone$ is finitely generated).
 It then boils down to a few For-loops.
 Alternatively, linear programming can be applied to the convex relaxation, 
 as the problem cost function is linear in both arguments.
-Depending on how the problem is solved, a MiniMax problem might be preferable,
+Depending on how the problem is solved, a MiniMax problem might seem preferable,
 but equality does not necessarily hold here.
 % \begin{equation}
 % 	\vdK =
@@ -1639,7 +2271,7 @@ but equality does not necessarily hold here.
 % 			\vdKp
 % 		&\text{if $\kk \geq 1$.}
 % 	\end{cases}
-% 	\tag{FR~MOII}
+% 	\tag{FR~MO~II}
 % 	\label{eqn:frMO2}
 % \end{equation}
 
@@ -1650,6 +2282,7 @@ but equality does not necessarily hold here.
 \end{proposition}
 
 \begin{proof}
+	Again, the proof is by induction.
 	The property trivially holds for $\kk=0$.
 	Let $\kk \geq 1$.
 	The definition~\eqref{eqn:frMO2}
@@ -1665,7 +2298,7 @@ but equality does not necessarily hold here.
 			\theta\kK(\ve w^*)
 			\sdK
 			+
-			\beta\kK
+			\beta\kK(\ve w^*)
 			\vdKp
 		}}
 		\\
@@ -1673,67 +2306,101 @@ but equality does not necessarily hold here.
 		\theta\kK(\ve w^*)
 		\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
 		+
-		\beta\kK
+		\beta\kK(\ve w^*)
 		\mul{\ve{v}^*}{\jacf(\vxK)\vdKp}
 		\\
 		&\stackrel{\eqref{eqn:doorsAttention}}\leq
 		\theta\kK(\ve v^*)
 		\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
 		+
-		\beta\kK
+		\beta\kK(\ve v^*)
 		\mul{\ve{v}^*}{\jacf(\vxK)\vdKp}
 		\\
-		% &\stackrel{\eqref{eqn:characteriserAbout}}=
-		% \frac{
-		% 	\args{
-		% 		\mul{\ve v^*}{\jacf(\vxK)\vdKp}
-		% 		-
-		% 		\mul{\ve v^*}{\jacf(\vxKp)\vdKp}
-		% 	}
-		% 	\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
-		% 	- 
-		% 	\max_{\ve w}\mul{\ve w}{\jacf(\vxK)\sdK}
-		% 	\mul{\ve{v}^*}{\jacf(\vxK)\vdKp}
-		% }{
-		% 	-\funcXKp(\sdKp)
-		% }
-		% \\
-		&\stackrel{(*)}\leq
-		\frac{-
-		\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
-		\mul{\ve v^*}{\jacf(\vxKp)\vdKp}
+		&\stackrel{\eqref{eqn:characteriserAbout}}=
+		\frac{
+			\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
 		}{
 			-\funcXKp(\sdKp)
 		}
+		\args{
+		 		\mul{\ve v^*}{\jacf(\vxK)\vdKp}
+				-
+				\mul{\ve v^*}{
+					%\args{\jacf(\vxK)\vdKp - 
+					\jacf(\vxKp)\vdKp
+				%}
+			}
+			- 
+			%\max_{\ve w}
+			\mul{\ve{v}^*}{\jacf(\vxK)\vdKp}
+		}
 		\\
-		&\stackrel{\text{def.}}\leq
-		\funcXK(\sdK)
+		%&\stackrel{(*)}\leq
+		&\leq
 		\frac{
+		\mul{\ve{v}^*}{\jacf(\vxK)\sdK}	
+		\mul{\ve v^*}{\jacf(\vxKp)\vdKp}
+		}{
+		\funcXKp(\sdKp)
+		}
+		\\
+		% &\stackrel{\text{def.}}\leq
+		% \mul{\ve{v}^*}{\jacf(\vxK)\sdK}
+		% \underbrace{\frac{
+		% 	-\funcXKp(\vdKp)
+		% }{
+		% 	-\funcXKp(\sdKp)
+		% }}_{\geq 0}
+		% \\
+		% &\stackrel{\text{def.}}\leq
+		&\leq \frac{
+			%-\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
+			\funcXK(\sdK)
 			\funcXKp(\vdKp)
 		}{
 			\funcXKp(\sdKp)
 		}
 		.
 	\end{align*}
-	For the bound $(*)$ we have plugged in the 
-	definition~\eqref{eqn:characteriserAbout} and used
-	$$
-	\mul{\ve v^*}{\jacf(\vxK)\vdKp}
-	\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
-	-
-	\mul{\ve{v}^*}{\jacf(\vxK)\vdKp}
-	\max_{\ve w}\mul{\ve w}{\jacf(\vxK)\sdK}
-	\leq 0.
-	$$
-	Finally, sufficient decrease follows by induction
+	For the last line we have used the fact, that 
+	$\mul{\ve{v}^*}{\jacf(\vxK)\sdK} \leq 0$ and 
+	$\mul{\ve v^*}{\jacf(\vxKp)\vdKp} \leq 0$ (by induction),
+	while repeatedly applying the definition of $\funcX$ as a maximum operator.
+	Finally, sufficient decrease follows
 	because of $\frac{\funcXKp(\vdKp)}{\funcXKp(\sdKp)}\leq 1$.
+	%we have plugged in the 
+	%definition~\eqref{eqn:characteriserAbout} and used
 \end{proof}
 
+% \begin{remark*}
+% 	Instead of having $\beta\kK$ depend on $\ve w^*$ in \eqref{eqn:characteriserAbout},
+% 	we can also use $\beta\kK = \norm{\sdK}^2/\norm{\sdKp}^2$ again.
+% 	The proof works just the same.
+% 	After plugging in the coefficient definitions and 
+% 	using the MaxiMin property, we only have to realize that
+% 	\begin{align*}
+% 	\mul{\ve v^*}{\jacf(\vxK)\vdKp}
+% 	\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
+% 	-
+% 	\mul{\ve v^*}{\jacf(\vxK)\vdKp}
+% 	\max_{\ve w}\mul{\ve{w}}{\jacf(\vxK)\sdK}
+% 	\leq 0,
+% 	\end{align*}
+% 	to obtain the same final inequalities.
+% \end{remark*}
+
+To make the MaxiMin directions fit our convergence analysis,
+we now require a bounded sublevel-set.
+That makes the subsequent proof more akin to that of the directions
+in the next section than to the prior FR variant with restarts.
+Alternatively, we could impose angle conditions on the gradients, which
+feel more complicated and unconventional. 
 \begin{proposition}
 	Suppose~\cref{%
 	ass:funcs_differentiable,%
-	ass:func_grads_lipschitz,%
-	ass:monotonic_seq_bounded}
+	%ass:func_grads_lipschitz,%
+	%ass:monotonic_seq_bounded,%
+	ass:sublevelset_bounded}
 	hold and that the criticality $\norm{\sdK}$ is 
 	bounded below like in~\eqref{eqn:critBoundedBelow}.
 	Then the Algorithm with modified Armijo-stepsizes
@@ -1741,16 +2408,90 @@ but equality does not necessarily hold here.
 	by~\eqref{eqn:frMO2} generates a critical subsequence.
 \end{proposition}
 
-\begin{proof}
-	The proof is the same as 
-	that of~\cref{thm:frMO1convergence} for 
-	the case $|\mathcal P|= \infty$ and $|\mathcal N|<\infty$.
-	To see this, note that the bound~\eqref{eqn:recalcitratedLinearly}
-	still holds and $\beta\kK$ is the same.
-	Thus, we get divergence of $\sum_{\kk} \frac{\norm{\sdK}^4}{\norm{\vdK}^2}$
-	in contradiction to~\Cref{thm:convergence}.	
-\end{proof}
+% \begin{proof}
+% 	The proof is the same as 
+% 	that of~\cref{thm:frMO1convergence} for 
+% 	the case $|\mathcal P|= \infty$ and $|\mathcal N|<\infty$.
+% 	To see this, note that the bound~\eqref{eqn:recalcitratedLinearly}
+% 	still holds and $\beta\kK$ is the same.
+% 	Thus, we get divergence of $\sum_{\kk} \frac{\norm{\sdK}^4}{\norm{\vdK}^2}$
+% 	in contradiction to~\Cref{thm:convergence}.	
+% \end{proof}
 
+\begin{proof}
+	\Cref{ass:sublevelset_bounded} implies
+	Lipschitz continuity of the Jacobians as per \cref{ass:func_grads_lipschitz}.
+	Furthermore, all gradients and Jacobians are uniformly bounded,
+	say by $\Const_g > 0$.
+	Because $\sdK$ is a sum of negative gradients weighted by coefficients from 
+	the bounded set $C$, the steepest descent direction is also uniformly bounded 
+	with $\Const_{\sd} > 0$
+	like so:
+	$$
+	\critBound \leq \norm{\sdK} \leq \Const_{\sd}, 
+		\qquad \; \forall \kk\in\NN_0.
+	$$
+	We use the triangle inequality and Cauchy-Schwarz on~\eqref{eqn:frMO2}
+	to get
+	\begin{align*}
+		\norm{\vdK}
+		&\leq
+		\abs{\theta\kK}
+		\norm{\sdK}
+		+
+		\abs{\beta\kK}
+		\norm{\vdKp}
+		\\
+		&\leq
+		\frac{1}{\norm{\sdKp}^2}
+		\args{
+		\abs{
+			\mul{\ve w^*}{
+				\args{\jacf(\vxK) - \jacf(\vxKp)}\vdKp	
+			}
+		}
+		\norm{\sdK}
+		+
+		\abs{
+			\mul{\ve w^*}{\jacf(\vxK)\sdK}
+		}
+		\norm{\vdKp}
+		}
+		\\
+		&\leq
+		\frac{\norm{\ve w^*}\norm{\sdK}	\norm{\vdKp}}{\norm{\sdKp}^2}
+		\args{
+		\norm{\jacf(\vxK) - \jacf(\vxKp)}
+		+
+		\norm{\jacf(\vxK)}.
+		}	
+	\end{align*}
+	We can now plug in all the bounds (and implicitly use the fact that 
+	$C$ is compact to bound $\norm{\ve w^*}$), before using the Lipschitz
+	continuity of the Jacobians:
+	\begin{align*}
+		\norm{\vdK}
+		&\leq
+		\tilde{\Const}
+		\norm{\vdKp}
+		\args{\norm{\jacf(\vxK) - \jacf(\vxKp)} + \Const_{g}}
+		\\
+		&\leq
+		\bar{\Const}
+		\norm{\vdKp}
+		\args{\norm{\vxK - \vxKp} + \Const_{g}}.
+	\end{align*}
+	Now $\norm{\vxK - \vxKp} = \szKp \norm{\vdKp}$ and this goes to zero
+	due to \cref{thm:stepNorm_zero}.
+	\textcolor{red}{Ab hier ist falsch!}
+	There is some $\kk_0 \in \NN_0$ with 
+	$norm{\vxK - \vxKp} \leq \mathtt{r}$ for all $\kk \geq \kk_0$,
+	where $\mathtt{r} > 0$ is small enough so as to meet
+	$$
+	\Const := \bar{\Const}(\mathtt{r} + \Const_{g}) \in (0,1).
+	$$
+\end{proof}
+\egroup
 \subsection{Three-Term Polak-Ribière-Polyak Scheme}
 \citet{zhangDescentModifiedPolak2006}
 define the following three-term \ac{prp} directions for 
@@ -1796,10 +2537,10 @@ $\mul{-\ve{g}\KK}{\vdK} = \norm{\sdK}^2$.
 Unfortunately, it is not sufficient to simply replace
 $-\ve{g}\KK$ with $\sdK$, the minimizer in~\eqref{eqn:sd_problem},
 to obtain a multi-objective scheme.
-But the following MaxiMin directions work.
-
-For $\kk \geq 1$ and $\ve{w}\in C$, 
-define $\ve{y}\KK = \sd\KKp - \sdK$ and
+If $C$ is discrete, we cannot use the linear-fractional programming
+approach neither.
+To see this, take a look at the suggested multi-objective coefficients
+(for $k\geq 1$ and $\ve w \in C$):
 \begin{equation}
 \beta\kK(\ve{w})
 =
@@ -1815,10 +2556,99 @@ define $\ve{y}\KK = \sd\KKp - \sdK$ and
 	\mul{\ve{w}}{\jacf(\vxK)\vd\KKp}
 }{
 	\norm{\sd\KKp}^2
-}.
+},
 \label{eqn:factorialsPreemergent}
 \end{equation}
-Then, let
+where $\ve{y}\KK = \sd\KKp - \sdK$.
+If we wanted to use a common $\ve w^*$ to define 
+$$
+\vdK
+= \sdK
++ \beta\kK \vdKp - \theta\kK \ve y\KK
+$$
+and show sufficient decrease, 
+this would require the following inequality to hold:
+$$
+\mul{\ve w^*}{\ve D\KK \ve y\KK}
+\mul{\ve v}{\ve D\KK \vdKp}
+-
+\mul{\ve w^*}{\ve D\KK \vdKp}
+\mul{\ve v}{\ve D\KK \ve y\KK}
+\leq 0
+\qquad \forall \ve v\in C.
+$$
+In the non-discrete case, $\ve w*$ could be chosen to be the 
+MiniMax solution of the skew-symmetric bilinear form on the \ac{lhs}.
+By von Neumann's theorem, it equals the MaxiMin and the optimal value 
+is $0$.
+But in the discrete case, we do not know, if the bilinear mapping
+describes a generalized rock-paper-scissors game (prohibiting the MiniMax)
+apporach) or not.
+A transformation into a linear-fractional problem is not possible,
+because we cannot assume a constant sign for either of the factors 
+of the expression above.
+\todo{References: von Neumann and Generalized Rock Paper Scissors}
+
+To circumvent these issues, we introduce two additional 
+iteration-dependent scaling factors $\alpha_\beta \in [0,1]$
+and $\alpha_\theta \in [0,1]$.
+After getting $(\ve v_\beta, \ve w_\beta)$ from solving
+$$
+\min_{\ve w}\max_{\ve v}
+\mul{\ve w}{\ve D\KK \ve y\KK}
+\mul{\ve v}{\ve D\KK \vdKp}
+$$
+and $(\ve v_\theta, \ve w_\theta)$ from
+$$
+\max_{\ve w}\min_{\ve v}
+\mul{\ve w}{\ve D\KK \vdKp}
+\mul{\ve v}{\ve D\KK \ve y\KK},
+$$
+we only have
+$$
+\psi(\ve v_\beta, \ve w_\beta)
+:=
+\mul{\ve w_\beta}{\ve D\KK \ve y\KK}
+\mul{\ve v_\beta}{\ve D\KK \vdKp}
+\geq
+\mul{\ve w_\theta}{\ve D\KK \vdKp}
+\mul{\ve v_\theta}{\ve D\KK \ve y\KK}
+=
+\psi(\ve w_\theta, \ve v_\theta)
+$$
+But we can determine $\alpha_\beta$ and $\alpha_\theta$
+to enforce equality:
+$$
+\alpha_\beta
+\psi(\ve v_\beta, \ve w_\beta)
+=
+\alpha_\theta
+\psi(\ve w_\theta, \ve v_\theta)
+$$
+Consider three cases:
+\begin{itemize}
+	\item If equality would require a sign switch, 
+		$\psi(\ve w_\theta, \ve v_\theta) \leq 0$ and 
+		$\psi(\ve v_\beta, \ve w_\beta) \geq 0$, then set
+		$\alpha_\beta = \alpha_\theta = 0$.
+	\item If both factors are positive, shrink the larger factor
+		$\psi(\ve v_\beta, \ve w_\beta)$ by multiplication with
+		$$
+		\alpha_\beta = \frac{\psi(\ve w_\theta, \ve v_\theta)}{\psi(\ve v_\beta, \ve w_\beta)}
+		\in (0,1],
+		$$
+		and set $\alpha_\theta = 1$.
+	\item If both factors are negative, grow the smaller factor
+		$\psi(\ve w_\theta, \ve v_\theta)$ by multiplication with
+		$$
+		\alpha_\theta = 
+		\frac{\psi(\ve v_\beta, \ve w_\beta)}{\psi(\ve w_\theta, \ve v_\theta)}
+		\in (0, 1]
+		$$
+		and set $\alpha_\beta = 1$.
+\end{itemize}
+
+Then (finally), let
 \begin{equation}
 \vdK =
 \begin{cases}
@@ -1826,36 +2656,15 @@ Then, let
 		& \text{if $\kk=0$}
 		\\
 	\sdK + 
-	\beta\kK(\ve{w}^*)
+	\alpha_\beta \beta\kK(\ve w_\beta)
 		\vd\KKp
-	-\theta\kK(\ve{w}^*)
+	-\alpha_\theta
+	\theta\kK(\ve w_\theta)
 		\ve{y}\KK,
 	&\text{if $\kk \geq 1$.}
 \end{cases}
-\tag{PRP~MOI}
+\tag{PRP~MO~I}
 \label{eqn:prpMO1}
-\end{equation}
-where $(\ve{v}^*, \ve{w}^*) \in C\times C$ solve
-\begin{equation}
-	% \phiC\args{
-	% 	\min_{\ve{w}\in C}
-	% 	\jacf(\vxK)\vdK(\ve w)
-	% }
-	% =
-	\max_{\ve{v}\in C}
-	\min_{\ve{w}\in C}
-	\mul{
-		\ve v
-	}{
-		\jacf(\vxK)
-		\args{
-		\sdK
-		+
-		\beta\kK(\ve w)\vd\KKp 
-		- 
-		\theta(\ve w)\ve{y}\KK
-		}
-	}.
 \end{equation}
 
 \begin{proposition}
@@ -1866,54 +2675,129 @@ where $(\ve{v}^*, \ve{w}^*) \in C\times C$ solve
 
 \begin{proof}
 	The case $\kk=0$ is trivial.
-	Let $\kk\geq1$.
-	Then, 
-	by definition of $(\ve{v}^*, \ve{w}^*)$,
+	Let $\kk\geq1$ and $\ve v \in C$.
+	Because $\alpha_\beta$ is non-negative and $\ve v_\beta$ is a 
+	maximizer,
 	\begin{align*}
-		\funcXK(\vdK)
-		&= 
-		\mul{\ve{v}^*}{\jacf(\vxK)\vdK(\ve{w}^*)}
-		\\
+	\alpha_\beta \psi(\ve v, \ve w_\beta)
+	&=
+	\alpha_\beta
+	\mul{\ve w_\beta}{\ve D\KK \ve y\KK}
+	\mul{\ve v}{\ve D\KK \vdKp}
+	\\
+	&\leq
+	\alpha_\beta 
+	\max_{\ve v}
+	\mul{\ve w_\beta}{\ve D\KK \ve y\KK}
+	\mul{\ve v}{\ve D\KK \vdKp}
+	\\
+	&=
+	\alpha_\beta
+	\mul{\ve w_\beta}{\ve D\KK \ve y\KK}
+	\mul{\ve v_\beta}{\ve D\KK \vdKp}
+	=
+	\alpha_\beta \psi(\ve v_\beta, \ve w_\beta).
+	\end{align*}
+	Furthermore, because $\alpha_\theta$ is nonnegative
+	and $\ve v_\theta$ is a minimizer,
+	\begin{align*}
+		\alpha_\theta \psi(\ve w_\theta, \ve v_\theta)
 		&=
-		\mul{\ve{v}^*}{	
-			\jacf(\vxK)
-			\args{
-				\sdK
-				+
-				\beta\kK(\ve{w}^*)
-					\vd\KKp
-				-
-				\theta\kK(\ve{w}^*)
-					\ve{y}\KK
-			}
-		}
+		\alpha_\theta
+		\mul{\ve w_\theta}{\ve D\KK \vdKp}
+		\mul{\ve v_\theta}{\ve D\KK \ve y\KK}
 		\\
 		&\leq
-		\mul{\ve{v}^*}{	
-			\jacf(\vxK)
-			\args{
-				\sdK
-				+
-				\beta\kK(\ve{v}^*)
-					\vd\KKp
-				-
-				\theta\kK(\ve{v}^*)
-					\ve{y}\KK
-			}
-		}.
-	\shortintertext{
-		Plugging in~\eqref{eqn:factorialsPreemergent}
-		makes the trailing terms vanish and we are left with
-	}
-	\funcXK(\vdK)
-	&\leq 
-	\mul{\ve{v}^*}{\jacf(\vxK)\sdK}
-	\leq
-	\max_{\ve v* \in C}
-	\mul{\ve{v}}{\jacf(\vxK)\sdK}
-	=
-	\funcXK(\sdK) \leq 0.
+		\alpha_\theta
+		\mul{\ve w_\theta}{\ve D\KK \vdKp}
+		\mul{\ve v}{\ve D\KK \ve y\KK}
+		=
+		\alpha_\theta
+		\psi(\ve w_\theta, \ve v).
 	\end{align*}
+	By the way we have set up $\alpha_\beta$ and $\alpha_\theta$,
+	we can combine both inequalities:
+	\begin{equation}
+	\alpha_\beta \psi(\ve v, \ve w_\beta)
+	=
+	\alpha_\beta
+		\mul{\ve w_\beta}{\ve D\KK \ve y\KK}
+		\mul{\ve v}{\ve D\KK \vdKp}
+	\leq
+	\alpha_\theta
+		\mul{\ve w_\theta}{\ve D\KK \vdKp}
+		\mul{\ve v}{\ve D\KK \ve y\KK}
+	=
+	\alpha_\theta
+	\psi(\ve w_\theta, \ve v)
+	.
+	\label{eqn:porkpieRelevancies}
+	\end{equation}
+	This enables us to discard those terms in the inner product:
+	$$
+	\mul{\ve v}{\ve D\KK \vdK}
+	=
+	\mul{\ve v}{\ve D\KK \sdK}
+	+ 
+	\underbrace{
+		\alpha_\beta
+		\psi(\ve v, \ve w_\beta)
+		-
+		\alpha_\theta
+		\psi(\ve w_\theta, \ve v)
+	}_{\leq 0}
+	\leq
+	\mul{\ve v}{\ve D\KK \sdK}
+	\leq 0.
+	$$
+
+	% Then, 
+	% by definition of $(\ve{v}^*, \ve{w}^*)$,
+	% \begin{align*}
+	% 	\funcXK(\vdK)
+	% 	&= 
+	% 	\mul{\ve{v}^*}{\jacf(\vxK)\vdK(\ve{w}^*)}
+	% 	\\
+	% 	&=
+	% 	\mul{\ve{v}^*}{	
+	% 		\jacf(\vxK)
+	% 		\args{
+	% 			\sdK
+	% 			+
+	% 			\beta\kK(\ve{w}^*)
+	% 				\vd\KKp
+	% 			-
+	% 			\theta\kK(\ve{w}^*)
+	% 				\ve{y}\KK
+	% 		}
+	% 	}
+	% 	\\
+	% 	&\leq
+	% 	\mul{\ve{v}^*}{	
+	% 		\jacf(\vxK)
+	% 		\args{
+	% 			\sdK
+	% 			+
+	% 			\beta\kK(\ve{v}^*)
+	% 				\vd\KKp
+	% 			-
+	% 			\theta\kK(\ve{v}^*)
+	% 				\ve{y}\KK
+	% 		}
+	% 	}.
+	% \shortintertext{
+	% 	Plugging in~\eqref{eqn:factorialsPreemergent}
+	% 	makes the trailing terms vanish and we are left with
+	% }
+	% \funcXK(\vdK)
+	% &\leq 
+	% \mul{\ve{v}^*}{\jacf(\vxK)\sdK}
+	% \leq
+	% \max_{\ve v \in C}
+	% \mul{\ve{v}}{\jacf(\vxK)\sdK}
+	% =
+	% \funcXK(\sdK) \leq 0.
+	% \end{align*}
 \end{proof}
 
 Proving convergence for these specific directions
@@ -1949,6 +2833,10 @@ above by a constant $\Const_{\sd} > 0$.
 If we can show the same for $\vdK$, that concludes the proof
 because of~\cref{thm:dirsBoundedConvergence}.
 
+\todo{
+	The proof below can be easily adapted to include the factors 
+	$\alpha_\beta, \alpha_\theta \in [0,1]$.
+}
 Assume $\kk \geq 1$.
 Apply the triangle inequality and Cauchy-Schwarz
 to the definition of $\vdK$:
@@ -1967,21 +2855,7 @@ to the definition of $\vdK$:
 	\norm{\vd\KKp}.
 	\label{eqn:hungeringlyTouches}
 \end{equation}
-Because of the assumptions and~\cite{svaiterMultiobjectiveSteepestDescent2018},
-we know the steepest descent direction to be $\holderConst$-Hölder
-continuous:
-\todo{Hölder-continuity is show in~\cite{svaiterMultiobjectiveSteepestDescent2018}
-for the case $\Kone=\RRin$.
-Should work for other cones as well, but better check!}
-$$
-\norm{\sd\KKp - \sdK}
-\leq
-\holderConst
-\norm{\vx\KKp - \vxK}^\frac{1}{2}
-=
-\holderConst
-\norm{\sz\KKp\vd\KKp}^\frac{1}{2}.
-$$
+Because of our assumptions, the steepest descent direction is Hölder-continuous.
 Furthermore, the Jacobians must be bounded and because
 $C$ is compact, there is some constant $\Const_{C} > 0$
 with $\norm{\ve{w}^*\jacf(\vxK)} \leq \Const_{C}$ for all $\kk$.
@@ -2280,7 +3154,7 @@ Lastly, define
 	= 
 	\proj{\beta\kK \vdKp}{M\KK}
 	.
-	\tag{PRP~MOII}
+	\tag{PRP~MO~II}
 	\label{eqn:prpMOProj}
 \end{equation}
 
@@ -2299,7 +3173,7 @@ $$
 }
 $$
 If the optimal at $\ve w$ is less than or equal to $0$,
-then, by the properties of $\phiC$,
+then, by the properties of $\phiC$, the vector
 $$
 \proj{\beta\kK \vdKp}{\orth(\transp{\jacf(\vxK)}\ve w^*)},
 $$
