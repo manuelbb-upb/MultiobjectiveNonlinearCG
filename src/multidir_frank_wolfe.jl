@@ -137,140 +137,88 @@ end
 
 # The stepsize computation is the most difficult part. 
 # Now, we only have to care about stopping and can complete the solver 
-# for our sub-problem:
+# for our sub-problem.
 
+# First, we want to collect and pre-cache all arrays:
+struct FrankWolfeCache{T<:AbstractFloat}
+	α :: Vector{T}	# solution vector
+	_α :: Vector{T}	# temporary vector
+	M :: Matrix{T}	# symmetric matrix for gradient products
+	u :: Vector{T}	# seed vector
+end
+
+function init_frank_wolfe_cache(::Type{T}, num_grads) where T<:AbstractFloat
+	α = zeros(num_grads)
+	_α = similar(α)
+	M = zeros(num_grads, num_grads)
+	u = similar(α)
+	return FrankWolfeCache(α, _α, M, u)
+end
+
+# We initialize the cache from the Jacobian:
+function frank_wolfe_multidir_dual(jac::AbstractMatrix{F}; kwargs...) where F<:Real
+	T = Base.promote_type(Float32, F)
+	num_grads = size(jac, 1)
+	fw_cache = init_frank_wolfe_cache(T, num_grads)
+	frank_wolfe_multidir_dual!(fw_cache, jac; kwargs...)
+	return fw_cache.α
+end
+
+# Then we forward to the main algo:
+function frank_wolfe_multidir_dual!(
+	fw_cache::FrankWolfeCache, jac::AbstractMatrix; kwargs...
+)
+	@unpack α, _α, M, u = fw_cache
+	return frank_wolfe_multidir_dual!(
+		α, _α, M, u, jac; kwargs...
+	)
+end
+
+# The main algo looks like this:
 import LinearAlgebra as LA
-#-
-function frank_wolfe_multidir_dual(grads; max_iter=10_000, eps_abs=1e-6)
+function frank_wolfe_multidir_dual!(
+	α :: AbstractVector,	# solution vector
+	_α :: AbstractVector,	# temporary vector
+	M :: AbstractMatrix,	# symmetric product matrix for gradients
+	u :: AbstractVector,
+	jac :: AbstractMatrix; 
+	max_iter=10_000, 
+	eps_rel= let et=eltype(α); et <: AbstractFloat ? sqrt(eps(et)) : sqrt(eps(Float64)) end, 
+	eps_abs=0, 
+)
+	num_grads = size(jac, 1)
 
-	num_objfs = length(grads)
-	T = Base.promote_type(Float32, mapreduce(eltype, promote_type, grads))
-	
 	## 1) Initialize ``α`` vector. There are smarter ways to do this...
-	α = fill(T(1/num_objfs), num_objfs)
+	α .= 1/num_grads
 
 	## 2) Build symmetric matrix of gradient-gradient products
-	## # `_M` will be a temporary, upper triangular matrix
-	_M = zeros(T, num_objfs, num_objfs)
-	for (i,gi) = enumerate(grads)
-		for (j, gj) = enumerate(grads)
+	for (i,gi) = enumerate(eachrow(jac))
+		for (j, gj) = enumerate(eachrow(jac))
 			j<i && continue
-			_M[i,j] = gi'gj
+			M[i, j] = M[j, i] = gi'gj 
 		end
 	end
-	## # mirror `_M` to get the full symmetric matrix
-	M = LA.Symmetric(_M, :U)
 
 	## 3) Solver iteration
-	_α = copy(α)    		# to keep track of change
-	u = zeros(T, num_objfs) # seed vector
 	for _=1:max_iter
-		t = argmin( M*α )
-		v = α
-		fill!(u, 0)
-		u[t] = one(T)
+		_α .= α
+		LA.mul!(α, M, _α)
+		t = argmin( α )
+		v = _α
+		u .= 0
+		u[t] = 1
 		
 		γ, _ = min_chull2(M, v, u)
 
-		α .*= (1-γ)
+		@. α = (1-γ) * _α
 		α[t] += γ
 
-		if sum( abs.( _α .- α ) ) <= eps_abs
+		abs_change = sum( abs.( _α .- α ) ) 
+		if abs_change <= eps_abs || abs_change <= eps_rel * sum( abs.(_α) )
 			break
 		end
-		_α .= α
 	end
-	
-	## return -sum(α .* grads) # somehow, broadcasting leads to type instability here, 
-	## see also https://discourse.julialang.org/t/type-stability-issues-when-broadcasting/92715
-	return mapreduce(*, +, α, grads)
-end
+	α *= -1
 
-# ### Caching
-
-#=
-Looking into `frank_wolfe_multidir_dual`, we see that in each execution there are 
-allocations.
-As the function is called repeatedly in some outer loop, it might proof beneficial to 
-pre-allocate these arrays and use a cached version of the algorithm:
-=#
-
-struct FrankWolfeCache{T}
-	α :: Vector{T}
-	_α :: Vector{T}
-	_M :: Matrix{T}
-	u :: Vector{T}
-	sol :: Vector{T}
-end
-
-# The initializer works just as in `frank_wolfe_multidir_dual`:
-function init_frank_wolfe_cache(grads)
-	num_objfs = length(grads)
-	T = Base.promote_type(Float32, mapreduce(eltype, promote_type, grads))
-	return init_frank_wolfe_cache(T, num_objfs)
-end
-
-function init_frank_wolfe_cache(T, num_vars, num_objfs)
-	## 1) Initialize ``α`` vector. There are smarter ways to do this...
-	α = fill(T(1/num_objfs), num_objfs)
-	_α = copy(α)
-	
-	## 2) Build symmetric matrix of gradient-gradient products
-	## # `_M` will be a temporary, upper triangular matrix
-	_M = zeros(T, num_objfs, num_objfs)
-
-	## seed vector
-	u = zeros(T, num_objfs)
-
-	## solution vector
-	sol = zeros(T, num_vars)
-	return FrankWolfeCache(α, _α, _M, u, sol)
-end
-
-# Of course, the new method ends in "!" to show that it mutates the cache.
-# Also, we return the negative solution here, to avoid unnecessary multiplications later on:
-function frank_wolfe_multidir_dual!(fw_cache::FrankWolfeCache{T}, grads; max_iter=10_000, eps_abs=1e-6) where T
-	# NOTE Here, the `@unpack` macro would be nice #src
-	## Unpack working arrays from cache:
-	α = fw_cache.α
-	_α = fw_cache._α
-	_M = fw_cache._M
-	u = fw_cache.u
-	sol = fw_cache.sol
-	
-	## 2) Build symmetric matrix of gradient-gradient products
-	for (i,gi) = enumerate(grads)
-		for (j, gj) = enumerate(grads)
-			j<i && continue
-			_M[i,j] = gi'gj
-		end
-	end
-	## # mirror `_M` to get the full symmetric matrix
-	M = LA.Symmetric(_M, :U)
-
-	## 3) Solver iteration
-	_α .= α    				# to keep track of change
-	for _=1:max_iter
-		t = argmin( M*α )
-		v = α
-		fill!(u, 0)
-		u[t] = one(T)
-		
-		γ, _ = min_chull2(M, v, u)
-
-		α .*= (1-γ)
-		α[t] += γ
-
-		if sum( abs.( _α .- α ) ) <= eps_abs
-			break
-		end
-		_α .= α
-	end
-	
-	fill!(sol, zero(T))
-	for (αℓ, gℓ) in zip(α, grads)
-		sol .-= αℓ .* gℓ
-	end
-	
-	return nothing
+	return α
 end

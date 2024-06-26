@@ -1,413 +1,295 @@
 module MultiobjectiveNonlinearCG
-
-using Parameters: @with_kw
-
-const MIN_PRECISION = Float32;
-
-struct MetaData{P}
-    dim_in :: Int
-    dim_out :: Int
-    precision :: P
-    num_iter :: Base.RefValue{Int}
+# # Useful Tools
+# I really like the `@unpack` macro for NamedTuples and custom types:
+import UnPack: @unpack
+# `LinearAlgebra` also comes in handy...
+import LinearAlgebra as LA
+# # Stop Codes
+# We define stop codes right at the beginning, because they should be available 
+# globally for all functions to return:
+@enum STOP_CODE :: Int8 begin
+    STOP_MAX_ITER
+    STOP_BUDGET_FUNCS
+    STOP_BUDGET_GRADS
+    STOP_CRIT_TOL_ABS
+    STOP_X_TOL_REL
+    STOP_X_TOL_ABS
+    STOP_FX_TOL_REL
+    STOP_FX_TOL_ABS
 end
 
-# Callback Interface
-abstract type AbstractCallback end
-abstract type AbstractCallbackCache end
+# # The Multi-Objective Optimization Problem
+#=
+We want to minimize multiple nonlinear, smooth objectives.
+The unconstrained problem is 
+```math
+    \min_{x ∈ ℝ^N} 
+        \begin{bmatrix}
+			f_1(x)
+			\\
+            ⋮
+            \\
+            f_K(x)
+        \end{bmatrix}
+    \tag{MOP}
+```
+To perform optimization, we need a way to query metadata for (MOP), 
+and evaluate and differentiate the objective functions.
+=#
 
-function init_callback_cache(::AbstractCallback, descent_cache, x, fx, d, DfxT, objf!, jacT!, meta)::AbstractCallbackCache
-    return nothing
-end
+# ## Interface
+# We accept problems subtyping `AbstractMOP`:
+abstract type AbstractMOP end
+# Such problem objects should implement these metadata functions:
+"Return the input dimension (the number of variables) of problem `mop`."
+dim_in(mop::AbstractMOP)=0
+"Return the output dimension (the number of objectives) of problem `mop`."
+dim_out(mop::AbstractMOP)=0
+# The `float_type` function is optional. It forces the element type for arrays.
+float_type(mop::AbstractMOP)=Float64
 
-function callback_before_iteration!(::AbstractCallbackCache, descent_cache, it_index, x, fx, DfxT, d, objf!, jacT!, meta)::Tuple{String, Int}
-    return "", 0
-end
-
-function callback_after_iteration!(::AbstractCallbackCache, descent_cache, it_index, x, fx, DfxT, d, objf!, jacT!, meta)::Tuple{String, Int}
-    return "", 0
-end
-
-# optional
-before_priority(::AbstractCallback)::Int = typemax(Int)
-after_priority(::AbstractCallback)::Int = typemax(Int)
-
-# derived functions
-import Logging
-Base.@kwdef struct CallbackHandler
-    loglevel :: Logging.LogLevel = Logging.Info
-    before_sorting :: Vector{Int}
-    after_sorting :: Vector{Int}
-end
-
-function print_msg(cb_handler, msg) 
-    if !isempty(msg)
-        return Logging.@logmsg(cb_handler.loglevel, msg)
+# The primal value vector is queried with the mutating function `func!`,
+# where the first argument is the value vector.
+# Thereafter follow immutable arguments.
+# First, the problem `mop` to define evaluation.
+# Then an object of type `AbstractDifferentiationOrder`:
+abstract type AbstractDifferentiationOrder end
+# For our first order method, there are only 2 options:
+struct OutputValues <: AbstractDifferentiationOrder end
+struct OutputGradients <: AbstractDifferentiationOrder end
+# Finally, `func!` takes the input vector.
+func!(y, mop::AbstractMOP, ::OutputValues, x)=nothing
+# For the Jacobian, the first argument should be a matrix, and the index is different:
+func!(Dy, mop::AbstractMOP, ::OutputGradients, x)=nothing
+# Optionally, we can optimize for a combined pass:
+struct OutputValuesAndGradients <: AbstractDifferentiationOrder end
+function func!(y, Dy, mop::AbstractMOP, ::OutputValuesAndGradients, x)
+    stop_code = func!(y, mop, OutputValues(), x)
+    if stop_code isa STOP_CODE
+        return stop_code
     end
+    return func!(Dy, mop, OutputGradients(), x)
 end
-
-function init_callbacks(
-    callbacks, loglevel, max_iter, descent_cache, x, fx, d, DfxT, objf!, jacT!, meta
-)
-    max_cb = MaxIterStopping(max_iter)
-    cbs = vcat(max_cb, callbacks)
-    before_sorting = sortperm(cbs; by=before_priority)
-    after_sorting = sortperm(cbs; by=after_priority)
-    init_fn(cb) = init_callback_cache(cb, descent_cache, x, fx, d, DfxT, objf!, jacT!, meta)
-    cb_caches = map(init_fn, cbs)
     
-    return CallbackHandler(; loglevel, before_sorting, after_sorting), cb_caches
-end
+# The indexed interface is meant to be implemented, but we also derive functions
+# with a more memorable name and simpler signature:
+objectives!(y, mop::AbstractMOP, x)=func!(y, mop, OutputValues(), x)
+jac!(Dy, mop::AbstractMOP, x)=func!(Dy, mop, OutputGradients(), x)
+objectives_and_jac!(y, Dy, mop::AbstractMOP, x)=func!(y, Dy, mop, OutputValuesAndGradients(), x)
 
-function handle_callbacks!(cb_caches, cb_handler, cache_sorting, cb_eval_func!, cb_args...)::Int
-    for cache in cb_caches[cache_sorting]
-        msg, stop_code = cb_eval_func!(cache, cb_args...)
-        print_msg(cb_handler, msg)
-        if stop_code < 0
-            return stop_code
-        end        
-    end
-    return 0
-end
+# ## Example Implementation
+# We provide a very basic implementation for testing purposes: `BasicMOP`.
+include("basic_mop.jl")
 
-function do_callbacks_before_iteration!(cb_caches, cb_handler, cb_args...)
-    return handle_callbacks!(cb_caches, cb_handler, cb_handler.before_sorting, callback_before_iteration!, cb_args...)
-end
-function do_callbacks_after_iteration!(cb_caches, cb_handler, cb_args...)
-    return handle_callbacks!(cb_caches, cb_handler, cb_handler.after_sorting, callback_after_iteration!, cb_args...)
-end
+# Besides the “reference implementation” `BasicMOP`, we also have a wrapper for 
+# counting and restricting function calls.
+# The type `CountedMOP` is defined in a separate file:
+include("counted_mop.jl")
 
-include("callbacks.jl")
+# # Steps and Descent Directions
+# Our algorithm is designed to be very flexible with regard to the actual descent steps used.
+# We take some configuration of type `AbstractStepRule`.
+# Then, a cache of type `AbstractStepRuleCache` is constructed.
+# We use the cache for storing temporary data and for dispatch, e.g., with `step!`
+abstract type AbstractStepRule end
+abstract type AbstractStepRuleCache end
 
-const DEFAULT_CALLBACKS = [
-    IterInfoLogger(), 
-    CriticalityStop(; eps_crit = eps(MIN_PRECISION(1e-1))),
-]
-
-abstract type AbstractDirRule end
-abstract type AbstractDirCache end
-
-# mandatory
-function init_cache(::AbstractDirRule, x, fx, DfxT, d, objf!, jacT!, objf_and_jacT!, meta)::AbstractDirCache
+# Initialization function for cache corresponding to `step_rule`:
+function init_cache(step_rule::AbstractStepRule, mop::AbstractMOP)
     return nothing
 end
 
-# mandatory
-function first_step!(descent_cache::AbstractDirCache, d, x, fx, DfxT, objf!, jacT!, meta)::Nothing
-    @error "No implementation of `first_step!` for `$(descent_cache)`."
+# Step computation function.
+# The object `carrays` is a `NamedTuple` with **common arrays**.
+# The methods for `step!` must set `carrays.d` to contain the step vector in variable 
+# space, `carrays.xd` to the next iteration vector, and `carrays.fxd` to the next value 
+# vector.
+function step!(it_index, carrays, ::AbstractStepRuleCache, mop::AbstractMOP; kwargs...)
+    nothing
 end
 
-# optional, but likely needed
-function step!(descent_cache::AbstractDirCache, d, x, fx, DfxT, objf!, jacT!, meta)::Nothing
-    return first_step!(descent_cache, d, x, fx, DfxT, objf!, jacT!, meta)
+# A function to return a criticality value, for stopping:
+criticality(carrays, ::AbstractStepRuleCache)=Inf
+
+# ## Stepsize
+# Within the `step!` implementation, we might wish to employ different stepsize methods.
+# We provide an interface similar to the `AbstractStepRule` interface.
+# We don't explicity use such objects in the algorithm, but an `AbstractStepRuleCache`
+# can reference them, for example.
+abstract type AbstractStepsizeRule end
+abstract type AbstractStepsizeCache end
+
+# Initalization function for `AbstractStepsizeCache`:
+function init_cache(sz_rule::AbstractStepsizeRule, ::AbstractMOP)
+    nothing
 end
 
-# optional
-function criticality(descent_cache::AbstractDirCache)::Number
-    return Inf
+# Mutating stepsize function.
+# A `stepsize!` method must correctly set `d`, `xd` and `fxd`.
+function stepsize!(d, xd, fxd, ::AbstractStepsizeCache, ::AbstractMOP, x, fx, Dfx, critval; kwargs...)
+    nothing
 end
 
-function info_msg(descent_cache::AbstractDirCache)::String
-    return ""
+# ### Actual Directions
+# The implementations are stored in a separate file:
+include("descent.jl")
+
+# # Main Algorithm
+
+# Before giving the complete loop, we define a default (no-op) callback.
+# It is called at the beginning of each iteration.
+# A user can provide their own callback function instead.
+function default_callback(it_index, carrays, mop, step_cache) end
+
+# The callback can be used for stopping.
+# If it returns a `STOP_CODE`, then we interrupt the algorithm and return.
+
+# Because we check stopping criteria quite often, there is the helper macro 
+# `@ignorebreak`.
+## helper for `@ignorebreak`
+function _parse_ignoraise_expr(ex)
+	has_lhs = false
+	if Meta.isexpr(ex, :(=), 2)
+		lhs, rhs = esc.(ex.args)
+		has_lhs = true
+	else
+		lhs = nothing	# not really necessary
+		rhs = esc(ex)
+	end
+	return has_lhs, lhs, rhs
 end
 
-include("dir_rules/all_rules.jl")
+"""
+    @ignorebreak do_something(args...)
+    @ignorebreak lhs = do_something(args...)
 
-function initialize_for_optimization(
-    x0::AbstractVector{X}, fx0::AbstractVector{Y}, DfxT0::AbstractMatrix{D}
-) where{X, Y, D}
-    T = Base.promote_type(MIN_PRECISION, X, Y, D)
-    x = T.(x0)
-    fx = T.(fx0)
-    DfxT = T.(DfxT0)
-
-    # read meta data
-    dim_in = length(x)
-    dim_out = length(fx)
-    meta = MetaData(dim_in, dim_out, T, Ref(0))
-
-    return x, fx, DfxT, meta
+If the expression `do_something` returns a `STOP_CODE`, then `break`.
+Otherwise assign the result to `lhs`, if there is a left-hand side.
+"""
+macro ignorebreak(ex, indent_ex=0)
+	has_lhs, lhs, rhs = _parse_ignoraise_expr(ex)
+	return quote
+		ret_val = $(rhs)
+		do_break = ret_val isa STOP_CODE
+		$(if has_lhs
+			:($(lhs) = ret_val)
+		else
+			:(ret_val = nothing)
+		end)
+		do_break && break		
+	end
 end
 
-function _optimize(
-    x0::AbstractVector{X}, fx0::AbstractVector{Y}, 
-    DfxT0::AbstractMatrix{<:Real}, objf!, jacT!,
-    objf_and_jacT!;
-    ensure_fx0=true,
-    ensure_DfxT0=true,
-    max_iter=1_000,
-    descent_rule=SteepestDescentRule(StandardArmijoRule()),
-    callbacks = DEFAULT_CALLBACKS,
-    loglevel = Logging.Info
-) where {X<:Number, Y<:Number}
+# One more helper to save some lines:
+function nothing_or_stop_code( stop_code_condition, stop_code)
+    if stop_code_condition
+        return stop_code
+    end
+    return nothing
+end
 
-    if isnothing(loglevel)
-        loglevel = Logging.LogLevel(typemin(Int32))
+# The common arrays `carrays` (that we have already seen above) come from this function:
+function initialize_common_arrays(mop)
+    F = float_type(mop)
+    n_vars = dim_in(mop)
+    n_objfs = dim_out(mop)
+
+    ## current variable vector and values
+    x = zeros(F, n_vars)
+    fx = zeros(F, n_objfs)
+    ## current Jacobian
+    Dfx = zeros(F, n_objfs, n_vars)
+
+    ## (scaled) descent direction
+    d = similar(x)
+    ## next variable vector and next values
+    xd = similar(x)
+    fxd = similar(fx)
+
+    ## return NamedTuple for easy unpacking
+    return (; x, fx, Dfx, d, xd, fxd)
+end
+
+# The optimization algorithm:
+function optimize(
+    x0, mop::AbstractMOP,
+    @nospecialize(callback=default_callback)
+    ;
+    step_rule = SteepestDescentDirection(),
+    max_iter = 500,
+    max_func_calls = Inf,
+    max_grad_calls = Inf,
+    crit_tol_abs = 1e-10,    # Optim.jl has 1e-8
+    x_tol_rel = 0,
+    x_tol_abs = 0,
+    fx_tol_rel = 0,
+    fx_tol_abs = 0
+)
+    ## some sanity checks
+    @assert length(x0) == dim_in(mop) "Variable vector has wrong length."
+    @assert dim_in(mop) > 0 "Variable dimension must be positive."
+    @assert dim_out(mop) > 0 "Output dimension must be positive."
+
+    ## safeguard `max_iter`
+    if isnothing(max_iter) || max_iter < 0
+        max_iter = Inf
     end
 
-    if isnothing(objf_and_jacT!)
-        objf_and_jacT! = function(y, D, x)
-            objf!(y, x)
-            jacT!(D, x)
-            return nothing
-        end
-    end
+    ## enable counting and restrict number of function calls
+    mop = CountedMOP(mop; max_func_calls, max_grad_calls)
+   
+    ## initialize common arrays and set first iteration site
+    carrays = initialize_common_arrays(mop)
+    @unpack x, fx, Dfx = carrays
+    copyto!(x, x0)
 
-    x, fx, DfxT, meta = initialize_for_optimization(x0, fx0, DfxT0)
-    stop_code = typemin(Int)
-    it_index = 0
-    if max_iter > 0
-        it_index += 1
-        # if needed, perform first evaluation(s) -- preparing for first iteration
-        # !!! note
-        #     We could choose to delay evaluation until after the callbacks have been
-        #     evaluated. By doing it before, on the other hand, we can 
-        #     a) provide `init_cache` with a valid Jacobian, should it be needed,
-        #     b) provide `init_callbacks` with a Jacobian 
-        #        (however, this seems not too important),
-        #     c) enable callbacks to abort based on the derivative values 
-        #        -- even in iteration 1
-        if ensure_fx0
-            if ensure_DfxT0
-                objf_and_jacT!(fx, DfxT, x)
-                ensure_DfxT0 = false
-            else
-                objf!(fx, x)
-            end
-        end
-        ensure_DfxT0 && jacT!(DfxT, x)
-        
-        # allocate direction vector `d` and the `descent_cache` before entering the main loop
-        d = similar(x)
-        descent_cache = init_cache(descent_rule, x, fx, DfxT, d, objf!, jacT!, objf_and_jacT!, meta)
-        
-        cb_handler, cb_caches = init_callbacks(
-            callbacks, loglevel, max_iter, descent_cache, x, fx, d, DfxT, objf!, jacT!, meta
+    ## prepare cache for steps
+    step_cache = init_cache(step_rule, mop)
+
+    @unpack d, xd, fxd = carrays
+    it_index = 1
+    stop_code = nothing
+    while true
+        @ignorebreak stop_code = callback(it_index, carrays, mop, step_cache)
+        @ignorebreak stop_code = nothing_or_stop_code(it_index >= max_iter, STOP_MAX_ITER)
+ 
+        @ignorebreak stop_code = objectives_and_jac!(fx, Dfx, mop, x)
+
+        @ignorebreak stop_code = step!(
+            it_index, carrays, step_cache, mop;
+            crit_tol_abs, x_tol_rel, x_tol_abs, fx_tol_rel, fx_tol_abs
         )
 
-        stop_code = do_callbacks_before_iteration!(
-            cb_caches, cb_handler, descent_cache, 1, x, fx, DfxT, d, objf!, jacT!, meta)
+        @ignorebreak stop_code = nothing_or_stop_code( 
+            criticality(carrays, step_cache) <= crit_tol_abs, STOP_CRIT_TOL_ABS)
+
+        @show x_change = LA.norm(d, Inf)
+        @ignorebreak stop_code = nothing_or_stop_code(
+            x_change <= x_tol_abs, STOP_X_TOL_ABS)
+        @ignorebreak stop_code = nothing_or_stop_code(
+            x_change <= x_tol_rel * LA.norm(x, Inf), STOP_X_TOL_REL)
+
+        fx_norm = LA.norm(fx, Inf)
+        fx .-= fxd
+        fx_change = LA.norm(fx, Inf)
+        @ignorebreak stop_code = nothing_or_stop_code(
+            fx_change <= fx_tol_abs, STOP_FX_TOL_ABS)
+        @ignorebreak stop_code = nothing_or_stop_code(
+            fx_change <= x_tol_rel * fx_norm, STOP_FX_TOL_REL)
         
-        if stop_code >= 0
-            first_step!(descent_cache, d, x, fx, DfxT, objf!, jacT!, meta)
-            x .+= d
-            objf_and_jacT!(fx, DfxT, x)
-    
-            stop_code = do_callbacks_after_iteration!(
-                cb_caches, cb_handler, descent_cache, 1, x, fx, DfxT, d, objf!, jacT!, meta)
-        else
-            it_index -= 1
-        end
-    end
-    while stop_code >= 0 
+        x .= xd
+        fx .= fxd
+        @ignorebreak stop_code = jac!(Dfx, mop, xd)
+       
         it_index += 1
-        stop_code = do_callbacks_before_iteration!(
-            cb_caches, cb_handler, descent_cache, it_index, x, fx, DfxT, d, objf!, jacT!, meta)
-        if stop_code < 0
-            it_index -= 1
-            break
-        end
-        
-        step!(descent_cache, d, x, fx, DfxT, objf!, jacT!, meta)
-        x .+= d
-        objf_and_jacT!(fx, DfxT, x)
-
-        stop_code = do_callbacks_after_iteration!(
-            cb_caches, cb_handler, descent_cache, it_index, x, fx, DfxT, d, objf!, jacT!, meta)
-        stop_code < 0 && break
     end
-    
-    meta.num_iter[] = it_index
-    return x, fx, stop_code, meta
+
+    return (; 
+        x, fx, stop_code, 
+        num_func_calls = counted_mop_calls(mop, OutputValues()),
+        num_grad_calls = counted_mop_calls(mop, OutputGradients())
+    )
 end
 
-function make_mutating(func)
-    return function(y, args...)
-        y .= func(args...)
-        return nothing
-    end
-end
-
-function optimize(x0, objf, jac; kwargs...)
-    return optimize(x0; objf, jac, kwargs...)
-end
-
-function optimize(x0, objf_and_jac; kwargs...)
-    return optimize(x0; objf_and_jac, kwargs...)
-end
-
-function optimize(x0, objf, jac, objf_and_jac; kwargs...)
-    return optimize(x0; objf, jac, objf_and_jac, kwargs...)
-end
-
-function optimize(
-    x0::AbstractVector{X}; 
-    objf = nothing, jac = nothing,
-    objf_and_jac = nothing,
-    objf_and_jac_is_mutating = false,
-    jac_is_transposed=true,
-    objf_is_mutating::Bool=false, jac_is_mutating::Bool=false,
-    fx0::Union{AbstractVector{<:Real}, Nothing}=nothing,
-    Dfx0::Union{AbstractMatrix{<:Real}, Nothing}=nothing,
-    ensure_fx0::Bool=false,
-    ensure_Dfx0::Bool=false,
-    kwargs...
-) where {X<:Real}
-
-    J = jac
-    if !isnothing(jac)
-        if !jac_is_transposed
-            if jac_is_mutating
-                J = (y, D, x) -> jac(y, D', x)
-            else
-                J = (x,) -> jac(x)'
-            end
-        end
-    end
-
-    fJ = objf_and_jac
-    if !isnothing(objf_and_jac)
-        if !jac_is_transposed
-            if objf_and_jac_is_mutating
-                fJ = (y, D, x) -> jac(y, D', x)
-            else
-                fJ = (x,) -> jac(x)'
-            end
-        end
-    end
-
-    if !isnothing(Dfx0)
-        if !jac_is_transposed
-            Dfx0 = copy(Dfx0')
-        end
-    end
-    
-    f = objf
-    if isnothing(f)
-        if !isnothing(fJ)
-            @warn ("inferring objective from `objf_and_jac`")
-            if objf_and_jac_is_mutating
-                if isnothing(Dfx0)
-                    if !isnothing(fx0)
-                        Dfx0 = similar(fx0, length(x0), length(fx0))
-                    elseif !isnothing(J)
-                        if !jac_is_mutating
-                            Dfx0 = J(x0)
-                            ensure_Dfx0 = false
-                        end
-                    end
-                end
-                if !isnothing(Dfx0)
-                    _D = similar(Dfx0)
-                    f = function (y, x)
-                        fJ(y, _D, x)
-                        return nothing
-                    end
-                    objf_is_mutating = true
-                end
-            else
-                f = x -> first(fJ(x))
-                objf_is_mutating = false
-            end
-        end
-    end
-    isnothing(f) && error("No objective provided.")
-
-    if isnothing(J)
-        if !isnothing(fJ)
-            @warn ("inferring jacobian from `objf_and_jac`")
-            if objf_and_jac_is_mutating
-                if isnothing(fx0)
-                    if !isnothing(Dfx0)
-                        fx0 = similar(vec(Dfx0[:, 1]))
-                        ensure_fx0 = true
-                    elseif !objf_is_mutating
-                        fx0 = f(x0)
-                        ensure_fx0 = false
-                    end
-                end
-                if !isnothing(fx0)
-                    _fx0 = similar(fx0)
-                    J = function (D, x)
-                        fJ(_fx0, D, x)
-                        return nothing
-                    end
-                end
-            else
-                J = x -> last(fJ(x))
-            end
-        end
-    end
-    isnothing(J) && error("No jacobian provided.")
-
-    f! = if objf_is_mutating
-        f
-    else
-        make_mutating(f)
-    end
-
-    J! = if jac_is_mutating
-        J
-    else
-        make_mutating(J)
-    end
-
-    fJ! = if isnothing(fJ)
-        function (y, D, x)
-            f!(y, x)
-            J!(D, x)
-            return nothing
-        end
-    elseif objf_and_jac_is_mutating
-        fJ
-    else
-        make_mutating(fJ)
-    end
-
-    if isnothing(fx0)
-        if !isnothing(Dfx0)
-            fx0 = similar(vec(Dfx0[:, 1]))
-            ensure_fx0 = true
-        elseif !objf_and_jac_is_mutating && !isnothing(fJ)
-            fx0, Dfx0 = fJ(x0)
-            ensure_fx0 = false
-            ensure_Dfx0 = false
-        elseif !objf_is_mutating
-            fx0 = f(x0)
-            ensure_fx0 = false
-        elseif !jac_is_mutating
-            Dfx0 = J(x0)
-            fx0 = similar(vec(Dfx0[:, 1]))
-            ensure_fx0 = true
-        end
-    end
-    isnothing(fx0) && error("For a mutating objective function, please provide a pre-allocated objective vector with kwarg `fx0`.")
-    if isnothing(Dfx0)
-        T = Base.promote_type(MIN_PRECISION, X, eltype(fx0))
-        Dfx0 = zeros(T, length(x0), length(fx0))
-        ensure_Dfx0 = true
-    else
-        @assert size(Dfx0) == (length(x0), length(fx0)) "Transposed jacobian array `DfxT0` must have size ($(length(x0)), $(length(fx0)))."
-    end
-
-    ensure_DfxT0 = ensure_Dfx0
-    return _optimize(x0, fx0, Dfx0, f!, J!, fJ!; ensure_fx0, ensure_DfxT0, kwargs...)
-end
-
-#=
-function improve(
-    x0::AbstractVector{X}, fx0::AbstractVector{Y}, 
-    objf!, jacT!; DfxT0=nothing, kwargs...
-) where{X<:Real, Y<:Real}
-    if isnothing(DfxT0)
-        T = Base.promote_type(MIN_PRECISION, X, Y)
-        DfxT_0 = zeros(T, length(x0), length(fx_0))
-    else
-        @assert size(DfxT0) == (length(x0), length(fx_0)) "Transposed jacobian array `DfxT0` must have size ($(length(x0)), $(length(fx_0)))."
-        DfxT_0 = DfxT0
-    end
-
-    return _optimize(x0, fx0, DfxT_0, objf!, jacT!)
-end
-=#
 
 end
