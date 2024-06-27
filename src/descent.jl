@@ -12,7 +12,7 @@ end
 
 function stepsize!(carrays, sz_cache::FixedStepsizeCache, mop::AbstractMOP, critval; kwargs...)
     @unpack sz = sz_cache
-    @unpack d, xd, fxd = carrays
+    @unpack d, x, xd, fxd = carrays
     d .*= sz
     @. xd = x + d
     return objectives!(fxd, mop, xd)
@@ -349,7 +349,7 @@ struct FletcherReevesFractionalLPCache{
     Dprev_sdprev :: Vector{F}
     Dprev_dprev :: Vector{F}
 
-    D_sdd_tmp :: Vector{F}
+    D_sd_tmp :: Vector{F}
 end
 
 function init_cache(step_rule::FletcherReevesFractionalLP, mop::AbstractMOP)
@@ -374,18 +374,22 @@ function step!(
     kwargs...
 )
     @unpack ccache = step_cache
-    
+
     ## modify carrays.d to be steepest descent direction
     steepest_descent_direction!(carrays, ccache)    # store ‖δₖ‖^2 in ccache.criticality_ref[]
 
     @unpack d, Dfx = carrays
     @unpack d_prev, Dprev_sdprev, Dprev_dprev, D_sdd_tmp, constant = step_cache
-    D_sd_tmp = D_sdd_tmp
-    LA.mul!(D_sd_tmp, Dfx, d)
+    
+    ## prepare storing product ∇f(xₖ)⋅δₖ for next iteration
+    LA.mul!(D_sd_tmp, Dfx, d)  
+    
     if it_index > 1
+        ## Find minimizing index `w` for 
+        ## ∇f_w(xₖ)ᵀ dₖ₋₁ ÷ ∇f_w(xₖ)ᵀ δₖ₋₁ 
         opt_val = Inf
-        w_g_dprev = NaN
-        w_g_sd = NaN  
+        w_g_dprev = NaN     # ∇f_w(xₖ)ᵀ dₖ₋₁ 
+        w_g_sd = NaN        # ∇f_w(xₖ)ᵀ δₖ₋₁ 
         w = 0
         for (_w, g) in enumerate(eachrow(Dfx))
             g_dprev = LA.dot(g, d_prev)
@@ -398,13 +402,16 @@ function step!(
                 w = _w
             end
         end
-        w_gprev_sdprev = Dprev_sdprev[w]
-        w_gprev_dprev = Dprev_dprev[w]
+        ## use index to define `θ` and `β`
+        ### retrieve terms
+        w_gprev_dprev = Dprev_dprev[w]      # ∇f_w(xₖ₋₁)ᵀ dₖ₋₁ 
+        w_gprev_sdprev = Dprev_sdprev[w]    # ∇f_w(xₖ₋₁)ᵀ δₖ₋₁ 
         
         denom = -constant * w_gprev_sdprev
         θ = (w_g_dprev - w_gprev_dprev - (constant-1) * w_gprev_sdprev) / denom
         β = -w_g_sd / denom
 
+        ## set CG direction dₖ = θ δₖ + β dₖ₋₁
         d .*= θ
         d .+= β * d_prev
     end
@@ -414,6 +421,151 @@ function step!(
     d_prev .= d
     Dprev_sdprev .= D_sd_tmp
     LA.mul!(Dprev_dprev, Dfx, d)
+
+    d_normsq = sum( d.^2 )
+
+    ## compute a stepsize, scale `d`, set `xd .= x .+ d` and values `fxd`
+    @unpack sz_cache = ccache
+    return stepsize!(carrays, sz_cache, mop, d_normsq; kwargs...)
+end
+
+Base.@kwdef struct ThreeTermPRP{
+    sz_ruleType
+} <: AbstractStepRule
+    sz_rule :: sz_ruleType = ArmijoBacktracking(; is_modified=Val{true}())
+    critval_mode :: Union{Val{:sd}, Val{:cg}} = Val{:sd}()
+end
+
+struct ThreeTermPRPCache{
+    F<:AbstractFloat,
+    ccacheType
+} <: AbstractCGCache
+    ccache :: ccacheType
+    critval_mode :: Union{Val{:sd}, Val{:cg}}
+    criticality_ref :: Base.RefValue{F}
+
+    d_prev :: Vector{F}
+    sd_prev :: Vector{F}
+    y :: Vector{F}
+end
+
+function init_cache(step_rule::ThreeTermPRP, mop::AbstractMOP)
+    ccache = init_common_cache(step_rule.sz_rule, mop)
+    criticality_ref = deepcopy(ccache.criticality_ref)
+    @unpack critval_mode = step_rule
+    F = float_type(mop)
+    d_prev = zeros(F, dim_in(mop))
+    sd_prev = similar(d_prev)
+    y = similar(d_prev)
+
+    return ThreeTermPRPCache(
+        ccache, critval_mode, criticality_ref, 
+        d_prev, sd_prev, y,
+    )
+end
+
+function step!(
+    it_index, carrays, step_cache::ThreeTermPRPCache, mop::AbstractMOP; 
+    kwargs...
+)
+    @unpack ccache = step_cache
+    ## before updating steepest descent direction, store norm squared for
+    ## denominator in CG coefficients 
+    sd_prev_normsq = ccache.criticality_ref[]   # ‖δₖ₋₁‖^2
+    
+    ## modify carrays.d to be steepest descent direction
+    steepest_descent_direction!(carrays, ccache)    # store ‖δₖ‖^2 in ccache.criticality_ref[]
+
+    @unpack d, Dfx = carrays
+    @unpack sd_prev, d_prev, y = step_cache
+   
+    if it_index == 1
+        β = θ = 0
+    else
+        ## set difference vector
+        ### at this point, `sd_prev` holds δₖ₋₁
+        y .= sd_prev - d     # yₖ = δₖ₋₁ - δₖ
+
+        ## determine (wβ, vβ) by solving discrete minimax problem
+        ## min_w max_v ∇f_w(xₖ)ᵀyₖ ⋅ ∇f_v(xₖ)ᵀ dₖ₋₁
+        wβ = vβ = 0
+        wβ_g_y = NaN    # ∇f_wβ(xₖ)ᵀyₖ
+
+        ## determine (wθ, vθ) by solving discrete maximin problem
+        ## max_w min_v ∇f_v(xₖ)ᵀyₖ ⋅ ∇f_w(xₖ)ᵀ dₖ₋₁
+        wθ = vθ = 0
+        wθ_g_dprev = NaN    # ∇f_wθ(xₖ)ᵀ dₖ₋₁
+
+        minimax_outer = Inf
+        maximin_outer = -Inf
+        for (w, gw) in enumerate(eachrow(Dfx))
+            minimax_inner = -Inf
+            maximin_inner = Inf
+            vmax = 0
+            vmin = 0
+            w_g_y = LA.dot(gw, y)
+            w_g_dprev = LA.dot(gw, y)
+            for (v, gv) in enumerate(eachrow(Dfx))
+                v_g_dprev = LA.dot(gv, d_prev)
+                _minimax_inner = w_g_y * v_g_dprev
+                if _minimax_inner > minimax_inner
+                    minimax_inner = _minimax_inner
+                    vmax = v
+                end
+                v_g_y = LA.dot(gv, y)
+                _maximin_inner = w_g_dprev * v_g_y
+                if _maximin_inner < maximin_inner
+                    maximin_inner = _maximin_inner
+                    vmin = v
+                end
+            end
+            if minimax_inner < minimax_outer
+                minimax_outer = minimax_inner
+                wβ_g_y = w_g_y
+                wβ = w
+                vβ = vmax
+            end
+            if maximin_inner > maximin_outer
+                maximin_outer = maximin_inner
+                wθ_g_dprev = w_g_dprev
+                wθ = w
+                vθ = vmin
+            end
+        end
+        
+        ψβ = minimax_outer
+        ψθ = maximin_outer
+        ## Note: Minimax Theorem holds for discrete problems: ψβ ≥ ψθ
+
+        ## determine balancing coefficients
+        αβ, αθ = if ψθ <= 0 && ψβ >= 0
+            ### sign swith / restart
+            (0, 0)
+        elseif ψθ > 0
+            ### both positive, 0 < ψθ ≤ ψβ
+            ## shrink larger factor
+            (ψθ/ψβ, 1)
+        else
+            ### both negative, ψθ ≤ ψβ < 0
+            ### grow smaller factor
+            (1, ψβ/ψθ)
+        end
+
+        ## finally, set coefficients
+        β = αβ * wβ_g_y / sd_prev_normsq
+        θ = αθ * wθ_g_dprev / sd_prev_normsq
+    end
+
+    ## before modifying `d`, store steepest descent direction for next iteration
+    sd_prev .= d
+
+    ## build CG direction
+    d .+= β * d_prev
+    d .-= θ * y
+    
+    ## before scaling, store data for next iteration
+    step_cache.criticality_ref[] = abs(maxdot(Dfx, d))
+    d_prev .= d
 
     d_normsq = sum( d.^2 )
 
