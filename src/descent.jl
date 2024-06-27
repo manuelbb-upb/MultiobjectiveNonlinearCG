@@ -1,3 +1,4 @@
+include("multidir_frank_wolfe.jl")
 
 Base.@kwdef struct FixedStepsize{F<:Real} <: AbstractStepsizeRule
     sz :: F = 0.001
@@ -9,7 +10,7 @@ function init_cache(sz_rule::FixedStepsize, mop::AbstractMOP)
     return FixedStepsizeCache(convert(float_type(mop), sz_rule.sz))
 end
 
-function stepsize!(d, xd, fxd, sz_cache::FixedStepsizeCache, mop::AbstractMOP, x, fx, Dfx, critval; kwargs...)
+function stepsize!(carrays, sz_cache::FixedStepsizeCache, mop::AbstractMOP, critval; kwargs...)
     @unpack sz = sz_cache
     d .*= sz
     @. xd = x + d
@@ -40,9 +41,10 @@ function init_cache(sz_rule::StandardArmijoBacktracking, mop::AbstractMOP)
 end
 
 function stepsize!(
-    d, xd, fxd, sz_cache::StandardArmijoBacktrackingCache, mop::AbstractMOP, x, fx, Dfx, critval;
+    carrays, sz_cache::StandardArmijoBacktrackingCache, mop::AbstractMOP, critval;
     kwargs...
 )
+    @unpack d, xd, fxd, x, fx = carrays
     @unpack factor, constant, sz0, mode, lhs_vec = sz_cache
     return armijo_backtrack!(
         d, xd, fxd, mop, x, fx, critval, factor, constant, sz0, mode, lhs_vec; kwargs...
@@ -85,11 +87,6 @@ function armijo_backtrack!(
     x_norm = LA.norm(x, Inf)
     fx_norm = LA.norm(fx, Inf)
 
-    _fx = similar(fx)
-    objectives!(_fx, mop, x)
-    @show fx
-    @show fx .- _fx
-
     if !zero_step
         ## avoid re-computation of maximum for scalar test:
         φx = _armijo_φ(mode, fx)
@@ -123,7 +120,7 @@ function armijo_backtrack!(
             
             sz *= factor
             rhs *= factor   # ! important
-            d *= factor
+            d .*= factor
             d_norm *= factor
             @. xd = x + d
             stop_code = objectives!(fxd, mop, xd)
@@ -133,7 +130,6 @@ function armijo_backtrack!(
             end
         end
     end
-    @show sz
     if zero_step
         d .= 0
         xd .= x
@@ -177,7 +173,6 @@ function criticality(carrays, step_cache::SteepestDescentDirectionCache)
     return step_cache.criticality_ref[]
 end
 
-include("multidir_frank_wolfe.jl")
 function init_cache(step_rule::SteepestDescentDirection, mop::AbstractMOP)
     criticality_ref = Ref(convert(float_type(mop), Inf))
     sz_cache = init_cache(step_rule.sz_rule, mop)
@@ -191,23 +186,18 @@ function step!(
 )
     ## compute KKT multipliers for steepest descent direction
     @unpack Dfx = carrays
-    @show Dfx
     @unpack fw_cache = step_cache
     α = frank_wolfe_multidir_dual!(fw_cache, Dfx)
     
     ## use these to set steepest descent direction `d`
     @unpack d = carrays
     LA.mul!(d, Dfx', α)
-    @show d
-    @show Dfx*d
 
     ## before scaling `d`, set criticality
     @unpack criticality_ref = step_cache
-    critval = criticality_ref[] = LA.norm(d, Inf)
+    critval = criticality_ref[] = sum(d.^2)
 
     ## compute a stepsize, scale `d`, set `xd .= x .+ d` and values `fxd`
-    @unpack x, fx, xd, fxd = carrays
     @unpack sz_cache = step_cache
-
-    return stepsize!(d, xd, fxd, sz_cache, mop, x, fx, Dfx, critval; kwargs...)
+    return stepsize!(carrays, sz_cache, mop, critval; kwargs...)
 end

@@ -1,4 +1,4 @@
-module MultiobjectiveNonlinearCG
+module MultiobjectiveNonlinearCG    #src
 # # Useful Tools
 # I really like the `@unpack` macro for NamedTuples and custom types:
 import UnPack: @unpack
@@ -126,7 +126,7 @@ end
 
 # Mutating stepsize function.
 # A `stepsize!` method must correctly set `d`, `xd` and `fxd`.
-function stepsize!(d, xd, fxd, ::AbstractStepsizeCache, ::AbstractMOP, x, fx, Dfx, critval; kwargs...)
+function stepsize!(carrays, ::AbstractStepsizeCache, ::AbstractMOP, critval; kwargs...)
     nothing
 end
 
@@ -210,6 +210,30 @@ function initialize_common_arrays(mop)
     return (; x, fx, Dfx, d, xd, fxd)
 end
 
+# Prepare for logging with a nice helper function:
+import Printf: @sprintf
+import Logging: @logmsg, Info
+function pretty_row_vec(
+	x::AbstractVector;
+	cutoff=80
+)
+	repr_str = "["
+	lenx = length(x)
+	for (i, xi) in enumerate(x)
+		xi_str = @sprintf("%.2e", xi)
+		if length(repr_str) + length(xi_str) >= cutoff
+			repr_str *= "..."
+			break
+		end
+		repr_str *= xi_str
+		if i < lenx
+			repr_str *= ", "
+		end
+	end
+	repr_str *= "]"
+	return repr_str
+end
+pretty_row_vec(x)=string(x)
 # The optimization algorithm:
 function optimize(
     x0, mop::AbstractMOP,
@@ -223,7 +247,8 @@ function optimize(
     x_tol_rel = 0,
     x_tol_abs = 0,
     fx_tol_rel = 0,
-    fx_tol_abs = 0
+    fx_tol_abs = 0,
+    log_level = Info
 )
     ## some sanity checks
     @assert length(x0) == dim_in(mop) "Variable vector has wrong length."
@@ -252,31 +277,45 @@ function optimize(
     while true
         @ignorebreak stop_code = callback(it_index, carrays, mop, step_cache)
         @ignorebreak stop_code = nothing_or_stop_code(it_index >= max_iter, STOP_MAX_ITER)
- 
+        
+        @logmsg log_level """#========================================#
+        Iteration $(it_index)
+        x  = $(pretty_row_vec(x))
+        fx = $(pretty_row_vec(fx))"""
+
         @ignorebreak stop_code = objectives_and_jac!(fx, Dfx, mop, x)
 
         @ignorebreak stop_code = step!(
             it_index, carrays, step_cache, mop;
             crit_tol_abs, x_tol_rel, x_tol_abs, fx_tol_rel, fx_tol_abs
         )
-
+        
+        critval = criticality(carrays, step_cache)
         @ignorebreak stop_code = nothing_or_stop_code( 
-            criticality(carrays, step_cache) <= crit_tol_abs, STOP_CRIT_TOL_ABS)
+            critval <= crit_tol_abs, STOP_CRIT_TOL_ABS)
 
-        @show x_change = LA.norm(d, Inf)
+        ## compute change values **before** updating `x`, `fx` etc.
+        x_change = LA.norm(d, Inf)
+        fx_norm = LA.norm(fx, Inf)
+        fx .-= fxd
+        fx_change = LA.norm(fx, Inf)
+ 
+        @logmsg log_level """\n
+        critval   = $(critval)
+        x_change  = $(x_change)
+        fx_change = $(fx_change)"""
+        
         @ignorebreak stop_code = nothing_or_stop_code(
             x_change <= x_tol_abs, STOP_X_TOL_ABS)
         @ignorebreak stop_code = nothing_or_stop_code(
             x_change <= x_tol_rel * LA.norm(x, Inf), STOP_X_TOL_REL)
 
-        fx_norm = LA.norm(fx, Inf)
-        fx .-= fxd
-        fx_change = LA.norm(fx, Inf)
         @ignorebreak stop_code = nothing_or_stop_code(
             fx_change <= fx_tol_abs, STOP_FX_TOL_ABS)
         @ignorebreak stop_code = nothing_or_stop_code(
             fx_change <= x_tol_rel * fx_norm, STOP_FX_TOL_REL)
-        
+       
+        @logmsg log_level "critval = $(critval), ‖d‖∞ = $(x_change)"
         x .= xd
         fx .= fxd
         @ignorebreak stop_code = jac!(Dfx, mop, xd)
@@ -285,11 +324,10 @@ function optimize(
     end
 
     return (; 
-        x, fx, stop_code, 
+        x, fx, carrays, step_cache, stop_code, 
         num_func_calls = counted_mop_calls(mop, OutputValues()),
         num_grad_calls = counted_mop_calls(mop, OutputGradients())
     )
 end
 
-
-end
+end#src
