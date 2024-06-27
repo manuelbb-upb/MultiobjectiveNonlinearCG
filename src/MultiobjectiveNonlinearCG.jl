@@ -274,9 +274,10 @@ function optimize(
     @unpack d, xd, fxd = carrays
     it_index = 1
     stop_code = nothing
+    callback_called = false
     while true
-        @ignorebreak stop_code = callback(it_index, carrays, mop, step_cache)
-        @ignorebreak stop_code = nothing_or_stop_code(it_index >= max_iter, STOP_MAX_ITER)
+        callback_called = false
+        @ignorebreak stop_code = nothing_or_stop_code(it_index > max_iter, STOP_MAX_ITER)
         
         @logmsg log_level """#========================================#
         Iteration $(it_index)
@@ -314,13 +315,20 @@ function optimize(
             fx_change <= fx_tol_abs, STOP_FX_TOL_ABS)
         @ignorebreak stop_code = nothing_or_stop_code(
             fx_change <= x_tol_rel * fx_norm, STOP_FX_TOL_REL)
-       
-        @logmsg log_level "critval = $(critval), ‖d‖∞ = $(x_change)"
+      
+        @ignorebreak stop_code = begin
+            callback_called = true
+            callback(it_index, carrays, mop, step_cache)
+        end
+        
         x .= xd
         fx .= fxd
         @ignorebreak stop_code = jac!(Dfx, mop, xd)
        
         it_index += 1
+    end
+    if !callback_called
+        callback(it_index, carrays, mop, step_cache)
     end
 
     return (; 
@@ -330,4 +338,7 @@ function optimize(
     )
 end
 
+# # User Utilities
+# This file has some tools that might be cool for experiments:
+include("utils.jl")
 end#src

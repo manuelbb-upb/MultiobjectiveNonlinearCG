@@ -1,8 +1,7 @@
 # This file is meant to be parsed by Literate.jl            #src
 # Activate `docs` environment:                              #src
-if !(joinpath(@__DIR__, "..", "..") in LOAD_PATH)           #src
-    pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..", ".."))   #src
-end                                                         #src
+using Pkg                                                   #src
+Pkg.activate(joinpath(@__DIR__, "..", ".."))                #src
 #%%#src
 # # MultiobjectiveNonlinearCG Tutorials
 import MultiobjectiveNonlinearCG as MCG
@@ -23,27 +22,13 @@ mop = MCG.BasicMOP(;
     end
 )
 #%%#src
-struct GatheringCallback{F}
-    x :: Vector{Vector{F}}
-    fx :: Vector{Vector{F}}
-end
-function GatheringCallback(mop)
-    F = MCG.float_type(mop)
-    x = Vector{F}[]
-    fx = Vector{F}[]
-    return GatheringCallback(x, fx)
-end
-function (callback::GatheringCallback)(it_index, carrays, mop, step_cache)
-    push!(callback.x, copy(carrays.x))
-    push!(callback.fx, copy(carrays.fx))
-end
-_x_mat(callback)=reduce(hcat, callback.x)
-_fx_mat(callback)=reduce(hcat, callback.fx)
+import MultiobjectiveNonlinearCG: GatheringCallback, _x_mat, _fx_mat
 #%%#src
 x0 = [3.1416, -2.7182]
-step_rule = MCG.SteepestDescentDirection(MCG.StandardArmijoBacktracking(; factor=.8))
+step_rule = MCG.SteepestDescentDirection(MCG.ArmijoBacktracking(; factor=.8, is_modified=Val(true)))
+step_rule = MCG.FletcherReevesRestart()
 callback = GatheringCallback(mop)
-opt_res = MCG.optimize(x0, mop, callback; step_rule, max_iter=100)
+opt_res = MCG.optimize(x0, mop, callback; step_rule, max_iter=10)
 
 fig, ax, _ = lines([(-1, -1), (1,1)])
 ax.aspect = AxisAspect(1)
