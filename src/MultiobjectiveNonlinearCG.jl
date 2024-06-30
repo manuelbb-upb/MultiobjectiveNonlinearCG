@@ -111,6 +111,27 @@ end
 # A function to return a criticality value, for stopping:
 criticality(carrays, ::AbstractStepRuleCache)=Inf
 
+# Optional functions for experiments:
+metadata_type(::AbstractStepRuleCache)=Nothing
+_metadata(::AbstractStepRuleCache)=nothing
+function metadata(step_cache::AbstractStepRuleCache)
+    return deepcopy( _metadata(step_cache) )
+end
+# The function `metadata_type` should return a type, 
+# either `Nothing` or `StepMeta`.
+# The method `_metadata` has to act accordingly and return an object of correct type:
+struct StepMeta{F<:AbstractFloat}
+    it_index :: Base.RefValue{Int}
+    direction_matrix :: Matrix{F}
+    direction_coefficients :: Vector{F}
+    sz :: Base.RefValue{F}
+end
+meta_it_index(smd::StepMeta)=smd.it_index[]
+meta_direction_matrix(smd::StepMeta)=smd.direction_matrix
+meta_direction_coefficients(smd::StepMeta)=smd.direction_coefficients
+meta_stepsize(smd::StepMeta)=smd.sz[]
+meta_direction(smd::StepMeta)=meta_direction_matrix(smd)*meta_direction_coefficients(smd)
+
 # ## Stepsize
 # Within the `step!` implementation, we might wish to employ different stepsize methods.
 # We provide an interface similar to the `AbstractStepRule` interface.
@@ -137,10 +158,18 @@ include("descent.jl")
 # # Main Algorithm
 
 # Before giving the complete loop, we define a default (no-op) callback.
-# It is called at the beginning of each iteration.
 # A user can provide their own callback function instead.
-function default_callback(it_index, carrays, mop, step_cache) end
-
+abstract type AbstractCallback end
+struct DefaultCallback <: AbstractCallback end
+# Before starting optimization, we allow for initialization:
+function initialize_callback(
+    uninitialized_callback::AbstractCallback, carrays, mop, step_cache)::AbstractCallback
+    return uninitialized_callback 
+end
+# This is called at the end of each iteration:
+function exec_callback(::AbstractCallback, it_index, carrays, mop, step_cache)
+    return nothing
+end
 # The callback can be used for stopping.
 # If it returns a `STOP_CODE`, then we interrupt the algorithm and return.
 
@@ -237,7 +266,7 @@ pretty_row_vec(x)=string(x)
 # The optimization algorithm:
 function optimize(
     x0, mop::AbstractMOP,
-    @nospecialize(callback=default_callback)
+    @nospecialize(callback=DefaultCallback())
     ;
     step_rule = SteepestDescentDirection(),
     max_iter = 500,
@@ -271,7 +300,27 @@ function optimize(
     ## prepare cache for steps
     step_cache = init_cache(step_rule, mop)
 
-    @unpack d, xd, fxd = carrays
+    ## prepare_callback
+    callback = initialize_callback(callback, carrays, mop, step_cache)
+
+    return optimize_after_init(
+        carrays, mop, step_cache, callback;
+        max_iter, 
+        crit_tol_abs,
+        x_tol_rel, x_tol_abs,
+        fx_tol_rel, fx_tol_abs,
+        log_level 
+    )
+end
+function optimize_after_init(
+    carrays, mop, step_cache, callback;
+    max_iter, 
+    crit_tol_abs,
+    x_tol_rel, x_tol_abs,
+    fx_tol_rel, fx_tol_abs,
+    log_level 
+)
+    @unpack x, fx, Dfx, d, xd, fxd = carrays
     it_index = 1
     stop_code = nothing
     callback_called = false
@@ -318,7 +367,7 @@ function optimize(
       
         @ignorebreak stop_code = begin
             callback_called = true
-            callback(it_index, carrays, mop, step_cache)
+            exec_callback(callback, it_index, carrays, mop, step_cache)
         end
         
         x .= xd
@@ -328,11 +377,11 @@ function optimize(
         it_index += 1
     end
     if !callback_called
-        callback(it_index, carrays, mop, step_cache)
+        exec_callback(callback, it_index, carrays, mop, step_cache)
     end
 
     return (; 
-        x, fx, carrays, step_cache, stop_code, 
+        x, fx, carrays, step_cache, stop_code, callback,
         num_func_calls = counted_mop_calls(mop, OutputValues()),
         num_grad_calls = counted_mop_calls(mop, OutputGradients())
     )

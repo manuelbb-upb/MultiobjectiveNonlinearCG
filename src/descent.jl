@@ -63,8 +63,6 @@ function armijo_backtrack!(
     is_modified :: Union{Val{true}, Val{false}} = Val{false}();
     x_tol_abs = 0,
     x_tol_rel = 0,
-#    fx_tol_abs = 0,
-#    fx_tol_rel = 0,
     kwargs...
 )
     x_tol_abs = max(x_tol_abs, mapreduce(eps, min, d))
@@ -90,7 +88,6 @@ function armijo_backtrack!(
     end
 
     x_norm = LA.norm(x, Inf)
-    # fx_norm = LA.norm(fx, Inf)
 
     if !zero_step
         ## avoid re-computation of maximum for scalar test:
@@ -111,14 +108,6 @@ function armijo_backtrack!(
             
             @. lhs_vec = fx - fxd
             
-            # lhs_norm = LA.norm(lhs_vec, Inf)
-            # if lhs_norm <= fx_tol_abs
-            #     break
-            # end
-            # if lhs_norm <= fx_tol_rel * fx_norm
-            #     break
-            # end 
-           
             if _armijo_test(mode, lhs_vec, φx, fxd, rhs)
                 break
             end
@@ -136,11 +125,15 @@ function armijo_backtrack!(
         end
     end
     if zero_step
+        sz = 0
         d .= 0
         xd .= x
         fxd .= fx
     end
 
+    if !(stop_code isa STOP_CODE)
+        stop_code = sz
+    end
     return stop_code 
 end
 
@@ -171,13 +164,14 @@ end
 Base.@kwdef struct SteepestDescentDirection{
     sz_ruleType, 
 } <: AbstractStepRule
-    sz_rule :: sz_ruleType = FixedStepsize()
+    sz_rule :: sz_ruleType = ArmijoBacktracking()
+    set_metadata :: Bool = false
 end
 
 struct CommonStepCache{
     F<:AbstractFloat,
     sz_cacheType,
-    fw_cacheType
+    fw_cacheType,
 } <: AbstractStepRuleCache
     criticality_ref :: Base.RefValue{F}
     sz_cache :: sz_cacheType
@@ -191,32 +185,72 @@ function init_common_cache(sz_rule, mop)
     return CommonStepCache(criticality_ref, sz_cache, fw_cache)
 end
 
+function init_step_meta(gather_meta_flag, dim_in, num_decomp, F)
+    return init_step_meta(Val(gather_meta_flag), dim_in, num_decomp, F)
+end
+function init_step_meta(::Val{false}, dim_in, num_decomp, F) end
+function init_step_meta(::Val{true}, dim_in, num_decomp, F)
+    it_index = Ref(0)
+    direction_matrix = Matrix{F}(undef, dim_in, num_decomp)
+    direction_coefficients = Vector{F}(undef, num_decomp)
+    sz = Ref(zero(F))
+    return StepMeta(
+        it_index, direction_matrix, direction_coefficients, sz
+    ) 
+end
+
 struct SteepestDescentDirectionCache{
-    ccacheType <: CommonStepCache
+    ccacheType <: CommonStepCache,
+    step_metaType
 } <: AbstractStepRuleCache
     ccache :: ccacheType
+    step_meta :: step_metaType
 end
 
 function criticality(carrays, step_cache::SteepestDescentDirectionCache)
     return step_cache.ccache.criticality_ref[]
 end
 
+metadata_type(step_cache::SteepestDescentDirectionCache)=typeof(step_cache.step_meta)
+function _metadata(step_cache::SteepestDescentDirectionCache)
+    return step_cache.step_meta
+end
+
 function init_cache(step_rule::SteepestDescentDirection, mop::AbstractMOP)
     ccache = init_common_cache(step_rule.sz_rule, mop)
-    return SteepestDescentDirectionCache(ccache)
+    step_meta = init_step_meta(step_rule.set_metadata, dim_in(mop), 1, float_type(mop))
+    return SteepestDescentDirectionCache(ccache, step_meta)
 end
  
 function step!(
     it_index, carrays, step_cache::SteepestDescentDirectionCache, mop::AbstractMOP; 
     kwargs...
 )
-    @unpack ccache = step_cache
+    @unpack ccache, step_meta = step_cache
+    
+    ## set it_index in metadata
+    if !isnothing(step_meta)
+        step_meta.it_index[] = it_index
+    end
+    
     ## modify carrays.d to be steepest descent direction
     critval_sd = steepest_descent_direction!(carrays, ccache)
+
+    ## set metadata
+    if !isnothing(step_meta)
+        step_meta.direction_matrix[:, 1] .= carrays.d
+        step_meta.direction_coefficients[1] = 1
+    end
     
     ## compute a stepsize, scale `d`, set `xd .= x .+ d` and values `fxd`
     @unpack sz_cache = ccache
-    return stepsize!(carrays, sz_cache, mop, critval_sd; kwargs...)
+    sz = stepsize!(carrays, sz_cache, mop, critval_sd; kwargs...)
+    if !(sz isa STOP_CODE)
+        if !isnothing(step_meta)
+            step_meta.sz[] = sz
+        end
+    end
+    return sz
 end
 
 function steepest_descent_direction!(carrays, ccache)
@@ -379,7 +413,7 @@ function step!(
     steepest_descent_direction!(carrays, ccache)    # store ‖δₖ‖^2 in ccache.criticality_ref[]
 
     @unpack d, Dfx = carrays
-    @unpack d_prev, Dprev_sdprev, Dprev_dprev, D_sdd_tmp, constant = step_cache
+    @unpack d_prev, Dprev_sdprev, Dprev_dprev, D_sd_tmp, constant = step_cache
     
     ## prepare storing product ∇f(xₖ)⋅δₖ for next iteration
     LA.mul!(D_sd_tmp, Dfx, d)  
@@ -429,14 +463,14 @@ function step!(
     return stepsize!(carrays, sz_cache, mop, d_normsq; kwargs...)
 end
 
-Base.@kwdef struct ThreeTermPRP{
+Base.@kwdef struct PRP3{
     sz_ruleType
 } <: AbstractStepRule
     sz_rule :: sz_ruleType = ArmijoBacktracking(; is_modified=Val{true}())
     critval_mode :: Union{Val{:sd}, Val{:cg}} = Val{:sd}()
 end
 
-struct ThreeTermPRPCache{
+struct PRP3Cache{
     F<:AbstractFloat,
     ccacheType
 } <: AbstractCGCache
@@ -449,7 +483,7 @@ struct ThreeTermPRPCache{
     y :: Vector{F}
 end
 
-function init_cache(step_rule::ThreeTermPRP, mop::AbstractMOP)
+function init_cache(step_rule::PRP3, mop::AbstractMOP)
     ccache = init_common_cache(step_rule.sz_rule, mop)
     criticality_ref = deepcopy(ccache.criticality_ref)
     @unpack critval_mode = step_rule
@@ -458,14 +492,14 @@ function init_cache(step_rule::ThreeTermPRP, mop::AbstractMOP)
     sd_prev = similar(d_prev)
     y = similar(d_prev)
 
-    return ThreeTermPRPCache(
+    return PRP3Cache(
         ccache, critval_mode, criticality_ref, 
         d_prev, sd_prev, y,
     )
 end
 
 function step!(
-    it_index, carrays, step_cache::ThreeTermPRPCache, mop::AbstractMOP; 
+    it_index, carrays, step_cache::PRP3Cache, mop::AbstractMOP; 
     kwargs...
 )
     @unpack ccache = step_cache
@@ -573,3 +607,102 @@ function step!(
     @unpack sz_cache = ccache
     return stepsize!(carrays, sz_cache, mop, d_normsq; kwargs...)
 end
+
+Base.@kwdef struct PRPConeProjection{
+    sz_ruleType
+} <: AbstractStepRule
+    sz_rule :: sz_ruleType = ArmijoBacktracking(; is_modified=Val{true}())
+    critval_mode :: Union{Val{:sd}, Val{:cg}} = Val{:sd}()
+end
+
+struct PRPConeProjectionCache{
+    F<:AbstractFloat,
+    ccacheType
+} <: AbstractCGCache
+    ccache :: ccacheType
+    critval_mode :: Union{Val{:sd}, Val{:cg}}
+    criticality_ref :: Base.RefValue{F}
+
+    d_prev :: Vector{F}
+    d_orth :: Vector{F}
+    d_opt :: Vector{F}
+    Dfx_prev :: Matrix{F}
+end
+
+function init_cache(step_rule::PRPConeProjection, mop::AbstractMOP)
+    ccache = init_common_cache(step_rule.sz_rule, mop)
+    criticality_ref = deepcopy(ccache.criticality_ref)
+    @unpack critval_mode = step_rule
+
+    F = float_type(mop)
+    d_prev = zeros(F, dim_in(mop))
+    d_orth = similar(d_prev)
+    d_opt = similar(d_prev)
+
+    Dfx_prev = zeros(F, dim_out(mop), dim_in(mop))
+
+    return PRPConeProjectionCache(
+        ccache, critval_mode, criticality_ref, 
+        d_prev, d_orth, d_opt, Dfx_prev
+    )
+end
+
+function step!(
+    it_index, carrays, step_cache::PRPConeProjectionCache, mop::AbstractMOP; 
+    kwargs...
+)
+    @unpack ccache = step_cache
+    ## before updating steepest descent direction, store norm squared for
+    ## denominator in CG coefficients 
+    sd_prev_normsq = ccache.criticality_ref[]   # -𝔣(δₖ₋₁, xₖ₋₁) = ‖δₖ₋₁‖^2
+    
+    ## modify carrays.d to be steepest descent direction
+    steepest_descent_direction!(carrays, ccache)    # store ‖δₖ‖^2 in ccache.criticality_ref[]
+
+    @unpack d, Dfx = carrays
+    @unpack d_prev, d_opt, d_orth, Dfx_prev = step_cache
+   
+    if it_index > 1
+        sd_normsq = ccache.criticality_ref[]    # -𝔣(δₖ, xₖ)
+        g_prev_sd = maxdot(Dfx_prev, d)         # 𝔣(δₖ, xₖ₋₁)
+        β = (g_prev_sd + sd_normsq) / sd_prev_normsq
+
+        d_prev .*= β
+        minimax_outer = Inf
+        for (w, gw) in enumerate(eachrow(Dfx))
+            project_on_ker!(d_orth, d_prev, gw)
+            minimax_inner = maxdot(Dfx, d_orth)
+            if minimax_inner < minimax_outer
+                minimax_outer = minimax_inner
+                d_opt .= d_orth
+            end
+        end
+        if minimax_outer <= 0
+            ## build CG direction
+            d .+= d_opt
+        end
+    end
+    
+    ## before scaling, store data for next iteration
+    step_cache.criticality_ref[] = abs(maxdot(Dfx, d))
+    d_prev .= d
+
+    d_normsq = sum( d.^2 )
+
+    ## compute a stepsize, scale `d`, set `xd .= x .+ d` and values `fxd`
+    @unpack sz_cache = ccache
+    return stepsize!(carrays, sz_cache, mop, d_normsq; kwargs...)
+end
+
+function project_on_ker!(
+    d⊥::AbstractVector, d::AbstractVector, g::AbstractVector
+)
+    @assert length(d⊥) == length(d) == length(g)
+    g_normsq = sum( g.^2 )
+    d⊥ .= d
+    for (i, gi) = enumerate(g)
+        d⊥[i] -= gi * LA.dot(g, d) / g_normsq
+    end
+    return d⊥
+end
+
