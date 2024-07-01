@@ -36,7 +36,9 @@ function initialize_callback(callback::GatheringCallback, carrays, mop, step_cac
     return cback
 end
 
-function exec_callback(callback::GatheringCallback, it_index, carrays, mop, step_cache)
+function exec_callback(callback::GatheringCallback, it_index, carrays, mop, step_cache, stop_code)
+    stop_code == STOP_MAX_ITER && return nothing
+    stop_code == STOP_CRIT_TOL_ABS && return nothing
     push!(callback.x, copy(carrays.x))
     push!(callback.fx, copy(carrays.fx))
     push!(callback.critvals, criticality(carrays, step_cache))

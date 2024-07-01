@@ -167,7 +167,7 @@ function initialize_callback(
     return uninitialized_callback 
 end
 # This is called at the end of each iteration:
-function exec_callback(::AbstractCallback, it_index, carrays, mop, step_cache)
+function exec_callback(::AbstractCallback, it_index, carrays, mop, step_cache, stop_code)
     return nothing
 end
 # The callback can be used for stopping.
@@ -367,7 +367,7 @@ function optimize_after_init(
       
         @ignorebreak stop_code = begin
             callback_called = true
-            exec_callback(callback, it_index, carrays, mop, step_cache)
+            exec_callback(callback, it_index, carrays, mop, step_cache, stop_code)
         end
         
         x .= xd
@@ -377,7 +377,7 @@ function optimize_after_init(
         it_index += 1
     end
     if !callback_called
-        exec_callback(callback, it_index, carrays, mop, step_cache)
+        exec_callback(callback, it_index, carrays, mop, step_cache, stop_code)
     end
 
     return (; 

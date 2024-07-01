@@ -14,8 +14,18 @@ begin
         joinpath(@__DIR__, "src", "makie_theme.jl");
         force=true
     )
+    cp(
+        joinpath(@__DIR__, "src", "literate_jl", "PlotHelpers.jl"),
+        joinpath(@__DIR__, "src", "PlotHelpers.jl");
+        force=true
+    )
     Literate.markdown(
         joinpath(@__DIR__, "src", "literate_jl", "pareto_optimality.jl"),
+        joinpath(@__DIR__, "src");
+        documenter=true
+    )
+    Literate.markdown(
+        joinpath(@__DIR__, "src", "literate_jl", "steepest_descent_plots.jl"),
         joinpath(@__DIR__, "src");
         documenter=true
     )
@@ -28,7 +38,6 @@ makedocs(
     modules = [MultiobjectiveNonlinearCG, ], 
     pages = [
         "Home" => "index.md",
-        "Theory" => "theory.md",
         "Pareto Optimality" => "pareto_optimality.md",
     ],
     warnonly = [:missing_docs,]

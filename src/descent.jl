@@ -342,8 +342,10 @@ function step!(
             abs(LA.dot(d, d_prev))  # `d` is steepest descent direction atm
         )
         if lhs <= upper_bound
-            β = sd_normsq / sd_prev_normsq
-            θ = (f_dprev + fprev_dprev) / sd_prev_normsq
+            #src denom = sd_prev_normsq
+            denom = fprev_dprev
+            β = sd_normsq / denom
+            θ = (f_dprev + fprev_dprev) / denom
             d .*= θ
             d .+= β .* d_prev
         end
@@ -521,33 +523,44 @@ function step!(
         y .= sd_prev - d     # yₖ = δₖ₋₁ - δₖ
 
         ## determine (wβ, vβ) by solving discrete minimax problem
-        ## min_w max_v ∇f_w(xₖ)ᵀyₖ ⋅ ∇f_v(xₖ)ᵀ dₖ₋₁
+        ## min_w max_v ⟨w, ∇f(xₖ)yₖ⟩ ⋅ ⟨v, ∇f(xₖ)dₖ₋₁⟩
         wβ = vβ = 0
-        wβ_g_y = NaN    # ∇f_wβ(xₖ)ᵀyₖ
+        wβ_g_y = NaN    # ⟨wβ, ∇f(xₖ)yₖ⟩
 
+        ## It always holds that
+        ## min_w max_v ⟨w, ∇f(xₖ)yₖ⟩ ⋅ ⟨v, ∇f(xₖ)dₖ₋₁⟩
+        ## ≥
+        ## max_v min_w ⟨w, ∇f(xₖ)yₖ⟩ ⋅ ⟨v, ∇f(xₖ)dₖ₋₁⟩
+        ## = 
+        ## max_w min_v ⟨v, ∇f(xₖ)yₖ⟩ ⋅ ⟨w, ∇f(xₖ)dₖ₋₁⟩
+        ##
         ## determine (wθ, vθ) by solving discrete maximin problem
-        ## max_w min_v ∇f_v(xₖ)ᵀyₖ ⋅ ∇f_w(xₖ)ᵀ dₖ₋₁
+        ## max_w min_v ⟨v, ∇f(xₖ)yₖ⟩ ⋅ ⟨w, ∇f_w(xₖ)dₖ₋₁⟩
         wθ = vθ = 0
-        wθ_g_dprev = NaN    # ∇f_wθ(xₖ)ᵀ dₖ₋₁
+        wθ_g_dprev = NaN    # ⟨wθ, ∇f(xₖ)dₖ₋₁⟩
 
         minimax_outer = Inf
         maximin_outer = -Inf
         for (w, gw) in enumerate(eachrow(Dfx))
+            ## max_v ⟨w, ∇f(xₖ)yₖ⟩ ⋅ ⟨v, ∇f(xₖ)dₖ₋₁⟩
             minimax_inner = -Inf
-            maximin_inner = Inf
             vmax = 0
+            w_g_y = LA.dot(gw, y)           # ⟨w, ∇f(xₖ)yₖ⟩
+
+            ## min_v ⟨v, ∇f(xₖ)yₖ⟩ ⋅ ⟨w, ∇f_w(xₖ)dₖ₋₁⟩
+            maximin_inner = Inf
             vmin = 0
-            w_g_y = LA.dot(gw, y)
-            w_g_dprev = LA.dot(gw, y)
+            w_g_dprev = LA.dot(gw, d_prev)   # ⟨w, ∇f_w(xₖ)dₖ₋₁⟩
+
             for (v, gv) in enumerate(eachrow(Dfx))
-                v_g_dprev = LA.dot(gv, d_prev)
-                _minimax_inner = w_g_y * v_g_dprev
+                v_g_dprev = LA.dot(gv, d_prev)      # ⟨v, ∇f(xₖ)dₖ₋₁⟩
+                _minimax_inner = w_g_y * v_g_dprev  # ⟨w, ∇f(xₖ)yₖ⟩ ⋅ ⟨v, ∇f(xₖ)dₖ₋₁⟩
                 if _minimax_inner > minimax_inner
                     minimax_inner = _minimax_inner
                     vmax = v
                 end
-                v_g_y = LA.dot(gv, y)
-                _maximin_inner = w_g_dprev * v_g_y
+                v_g_y = LA.dot(gv, y)               # ⟨v, ∇f(xₖ)yₖ⟩
+                _maximin_inner = w_g_dprev * v_g_y  # ⟨v, ∇f(xₖ)yₖ⟩ ⋅ ⟨w, ∇f_w(xₖ)dₖ₋₁⟩
                 if _maximin_inner < maximin_inner
                     maximin_inner = _maximin_inner
                     vmin = v
@@ -670,7 +683,7 @@ function step!(
         d_prev .*= β
         minimax_outer = Inf
         for (w, gw) in enumerate(eachrow(Dfx))
-            project_on_ker!(d_orth, d_prev, gw)
+            project_on_ker!(d_orth, d_prev, gw) # `d_orth` = project dₖ₋₁ onto ∇f(xₖ)ᵀw
             minimax_inner = maxdot(Dfx, d_orth)
             if minimax_inner < minimax_outer
                 minimax_outer = minimax_inner
