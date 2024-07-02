@@ -1,3 +1,4 @@
 build/
 site/
-Manifest.toml
+*Manifest.toml
+/src/literate_jl/sd_comparisons
