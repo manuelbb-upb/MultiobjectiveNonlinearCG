@@ -1,5 +1,6 @@
-# MultiobjectiveNonlinearCG
+**There is a lot going on in branch `remake`. The main branch is outdated. Will update soon.**
 
+# MultiobjectiveNonlinearCG
 
 This is a package meant primarily for academic and research purposes.
 For my own sanity, I have incorporated a few convenience functions,
